@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --header-h: 64px;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 8px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); }
+
+.container-edge { @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8; }
+.card { @apply rounded-xl2 shadow-soft bg-white dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800; }
+.btn { @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition; }
+.btn-primary { @apply bg-cruceño-green text-white hover:bg-cruceño-greenLight; }
+.badge { @apply rounded-full border px-3 py-1 text-sm; }
