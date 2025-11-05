@@ -103,7 +103,9 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    )
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 12,
 }
 
 SIMPLE_JWT = {
@@ -120,3 +122,4 @@ CORS_ALLOW_ALL_ORIGINS = True
 #     "http://localhost:5173",
 #     "http://127.0.0.1:5173",
 # ]
+APPEND_SLASH = False

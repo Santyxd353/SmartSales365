@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import transaction
+from django.db.models import Q
+
 
 from .serializers import (
     RegisterSerializer, UserProfileSerializer, UserProfileUpdateSerializer,
@@ -97,8 +99,77 @@ class ProductListView(generics.ListAPIView):
 class ProductDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = ProductSerializer
-    queryset = Product.objects.filter(is_active=True)
+    queryset = Product.objects.filter(is_active=True) 
 
+# ───────────────────────────
+# CATÁLOGO (UC4) con búsqueda y filtros
+# ───────────────────────────
+class ProductListView(generics.ListAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = ProductListSerializer
+
+    def get_queryset(self):
+        qs = Product.objects.filter(is_active=True)
+
+        # Parámetros
+        q         = self.request.query_params.get('q')
+        brand     = self.request.query_params.get('brand')        # nombre exacto (p.ej. "Samsung")
+        brand_id  = self.request.query_params.get('brand_id')     # id numérico (opcional)
+        category  = self.request.query_params.get('category')     # nombre exacto (p.ej. "Consolas")
+        category_id = self.request.query_params.get('category_id')# id numérico (opcional)
+        min_price = self.request.query_params.get('min')
+        max_price = self.request.query_params.get('max')
+        in_stock  = self.request.query_params.get('in_stock')     # "1","true","yes","si"
+        sort      = self.request.query_params.get('sort')         # price_asc | price_desc | newest
+
+        # Búsqueda libre en varios campos
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q) |
+                Q(description__icontains=q) |
+                Q(color__icontains=q) |
+                Q(size__icontains=q)
+            )
+
+        # Filtros por marca (nombre o id)
+        if brand:
+            qs = qs.filter(brand__name__iexact=brand)
+        if brand_id:
+            qs = qs.filter(brand_id=brand_id)
+
+        # Filtros por categoría (nombre o id)
+        if category:
+            qs = qs.filter(category__name__iexact=category)
+        if category_id:
+            qs = qs.filter(category_id=category_id)
+
+        # Rango de precio
+        if min_price:
+            try:
+                qs = qs.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
+        if max_price:
+            try:
+                qs = qs.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
+
+        # Solo en stock
+        if in_stock and in_stock.lower() in ('1', 'true', 'yes', 'si'):
+            qs = qs.filter(stock__gt=0)
+
+        # Orden
+        if sort == 'price_asc':
+            qs = qs.order_by('price', 'name')
+        elif sort == 'price_desc':
+            qs = qs.order_by('-price', 'name')
+        elif sort == 'newest':
+            qs = qs.order_by('-created_at')
+        else:
+            qs = qs.order_by('name')
+
+        return qs
 
 # ───────────────────────────
 # CARRITO (UC5)
@@ -194,3 +265,131 @@ class CheckoutView(generics.CreateAPIView):
         ser.is_valid(raise_exception=True)
         order = ser.save()
         return Response({'order_id': order.id, 'transaction_number': order.transaction_number})
+
+# sales/views.py (agregar imports)
+from rest_framework import generics, permissions, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from django.utils.timezone import now
+from django.db import transaction
+from django.http import FileResponse
+from io import BytesIO
+
+from .models import Order
+from .serializers import OrderSerializer
+from .services import adjust_stock_on_paid, revert_stock_on_void
+
+# ----- UC13: Mis pedidos (cliente) -----
+class OrderMineList(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user).order_by('-created_at')
+
+# ----- UC9: Buscar por transaction_number (admin/garantías) -----
+class OrderByTransaction(generics.RetrieveAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAdminUser]
+    lookup_field = 'transaction_number'
+    queryset = Order.objects.all()
+
+# ----- UC7a: Marcar como pagado (efectivo / yape simulado) -----
+class OrderMarkPaid(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        order = get_object_or_404(Order.objects.select_for_update(), pk=pk)
+        if order.transaction_status == 'VOID':
+            return Response({"detail": "La transacción está anulada."}, status=400)
+        if order.status == 'PAID':
+            return Response({"detail": "La orden ya está pagada."}, status=400)
+
+        try:
+            adjust_stock_on_paid(order)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
+
+        method = request.data.get("method", "cash")
+        note = f"Pago confirmado ({method}) {now().strftime('%Y-%m-%d %H:%M')}"
+        order.observation = (order.observation or "")
+        order.observation = (order.observation + ("\n" if order.observation else "") + note)
+        order.save(update_fields=['observation'])
+        return Response(OrderSerializer(order).data, status=200)
+
+# ----- UC7b: Anular/void transacción (admin) -----
+class OrderVoid(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        order = get_object_or_404(Order.objects.select_for_update(), pk=pk)
+        if order.transaction_status == 'VOID':
+            return Response({"detail": "Ya estaba anulada."}, status=400)
+        revert_stock_on_void(order)
+        order.transaction_status = 'VOID'
+        order.voided_at = now()
+        order.voided_by = request.user
+        obs = request.data.get("reason", "Anulación por administración")
+        order.observation = (order.observation or "")
+        order.observation = (order.observation + ("\n" if order.observation else "") + f"VOID: {obs}")
+        order.save(update_fields=['transaction_status','voided_at','voided_by','observation','status'])
+        return Response(OrderSerializer(order).data, status=200)
+
+# ----- UC8: Comprobante PDF -----
+# Requiere: pip install reportlab
+class OrderReceiptPDF(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+        # el cliente solo puede ver su propio comprobante; admin puede ver cualquiera
+        if (order.user_id != request.user.id) and (not request.user.is_staff):
+            return Response({"detail":"No autorizado."}, status=403)
+
+        # generar PDF en memoria
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.units import mm
+
+        buf = BytesIO()
+        c = canvas.Canvas(buf, pagesize=A4)
+        W, H = A4
+
+        y = H - 20*mm
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(20*mm, y, "PercyStore - Comprobante de Compra"); y -= 10*mm
+
+        c.setFont("Helvetica", 10)
+        c.drawString(20*mm, y, f"Transacción: {order.transaction_number}"); y -= 6*mm
+        c.drawString(20*mm, y, f"Fecha: {order.created_at.strftime('%Y-%m-%d %H:%M')}"); y -= 6*mm
+        c.drawString(20*mm, y, f"Cliente: {order.user.get_full_name() or order.user.username}"); y -= 10*mm
+
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(20*mm, y, "Items"); y -= 6*mm
+        c.setFont("Helvetica", 10)
+
+        for it in order.items.all():
+            line = f"{it.qty}x {it.name_snapshot}  @ {it.unit_price}  = {it.line_total}"
+            c.drawString(22*mm, y, line); y -= 6*mm
+            if it.warranty_expires_at:
+                c.drawString(24*mm, y, f"Garantía hasta: {it.warranty_expires_at}"); y -= 5*mm
+            if y < 30*mm:
+                c.showPage(); y = H - 20*mm
+
+        y -= 5*mm
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(20*mm, y, f"Subtotal: {order.subtotal}"); y -= 6*mm
+        c.drawString(20*mm, y, f"Envío: {order.shipping_total}  Descuento: {order.discount_total}  Impuestos: {order.tax_total}"); y -= 6*mm
+        c.drawString(20*mm, y, f"TOTAL: {order.grand_total}"); y -= 10*mm
+
+        c.setFont("Helvetica", 9)
+        c.drawString(20*mm, y, f"Estado: {order.status}  | Transacción: {order.transaction_status}"); y -= 6*mm
+        c.drawString(20*mm, y, "Gracias por su compra. Conserve este comprobante para garantías.")
+
+        c.showPage()
+        c.save()
+        buf.seek(0)
+        return FileResponse(buf, as_attachment=False, filename=f"receipt_{order.transaction_number}.pdf", content_type='application/pdf')

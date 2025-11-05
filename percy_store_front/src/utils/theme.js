@@ -1,12 +1,24 @@
-export function loadTheme(){
-  const saved = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const mode = saved || (prefersDark ? 'dark' : 'light');
-  document.documentElement.classList.toggle('dark', mode === 'dark');
-  return mode;
+// Manejo simple de tema: agrega/quita 'dark' en <html>
+const KEY = 'ps_theme'
+
+export function loadTheme() {
+  const saved = localStorage.getItem(KEY)
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches
+  const theme = saved || (prefersDark ? 'dark' : 'light')
+  apply(theme)
+  return theme
 }
-export function toggleTheme(){
-  const isDark = document.documentElement.classList.toggle('dark');
-  localStorage.setItem('theme', isDark ? 'dark' : 'light');
-  return isDark ? 'dark' : 'light';
+
+export function toggleTheme() {
+  const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  const next = current === 'dark' ? 'light' : 'dark'
+  apply(next)
+  localStorage.setItem(KEY, next)
+  return next
+}
+
+function apply(theme) {
+  const html = document.documentElement
+  if (theme === 'dark') html.classList.add('dark')
+  else html.classList.remove('dark')
 }

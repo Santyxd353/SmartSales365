@@ -1,14 +1,18 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
-import Navbar from './components/Navbar'
-import Home from './pages/Home'
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Home from "./pages/Home";
+import Cart from "./pages/Cart";
+import ProductDetail from "./pages/ProductDetail";
 
 export default function App(){
   return (
-    <div className="min-h-screen text-neutral-900 dark:text-neutral-100 bg-white dark:bg-neutral-950">
+    <div className="min-h-screen bg-white text-neutral-900 dark:text-neutral-100 dark:bg-neutral-950">
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/cart" element={<Cart />} />
         <Route path="*" element={<div className="container-edge py-12">Página en construcción…</div>} />
       </Routes>
       <footer className="mt-12 border-t border-neutral-200 dark:border-neutral-800">
@@ -18,5 +22,5 @@ export default function App(){
         </div>
       </footer>
     </div>
-  )
+  );
 }

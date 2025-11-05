@@ -1,24 +1,19 @@
 # Python / Django
-__pycache__/
 *.pyc
-*.pyo
-*.db
+__pycache__/
 *.sqlite3
 .env
 .venv/
 venv/
-db.sqlite3
 
 # Node / React
 node_modules/
 dist/
 .env.local
+.env.development
 .env.production
-npm-debug.log
-yarn-error.log
 
-# VSCode / IDE
+# IDE
 .vscode/
 .idea/
 .DS_Store
-Thumbs.db

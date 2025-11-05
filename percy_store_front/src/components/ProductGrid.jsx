@@ -1,43 +1,58 @@
+// src/components/ProductGrid.jsx
 import React, { useEffect, useState } from 'react'
-import { listProducts, addToCart } from '../api'
+import { motion } from 'framer-motion'
+import { listProducts } from '../api/api'   // <-- usar listProducts
 import ProductCard from './ProductCard'
 
-export default function ProductGrid(){
-  const [items, setItems] = useState([])
+export default function ProductGrid({ q }) {
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [items, setItems]     = useState([])
+  const [error, setError]     = useState(null)
 
-  useEffect(()=>{
-    (async ()=>{
-      try{
-        const data = await listProducts()
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        setLoading(true)
+        const list = await listProducts(q || '')
+        if (!alive) return
+        // la API devuelve {results:[...]} cuando hay paginación;
+        // si viene array plano, lo usamos tal cual.
+        const data = Array.isArray(list) ? list : (Array.isArray(list.results) ? list.results : [])
         setItems(data)
-      }catch(e){
-        setError('No se pudo cargar el catálogo.')
-      }finally{
-        setLoading(false)
+        setError(null)
+      } catch (e) {
+        if (alive) setError(e.message || 'Error')
+      } finally {
+        if (alive) setLoading(false)
       }
-    })()
-  }, [])
-
-  async function handleAdd(p){
-    try{
-      await addToCart(p.id, 1)
-      alert('Agregado al carrito ✅')
-    }catch(e){
-      alert('Inicia sesión para agregar al carrito.')
     }
-  }
+    load()
+    return () => { alive = false }
+  }, [q])
 
-  if(loading) return <div className="container-edge py-10">Cargando productos...</div>
-  if(error) return <div className="container-edge py-10 text-red-600">{error}</div>
+  if (loading) return <div className="py-10 text-center opacity-70">Cargando catálogo…</div>
+  if (error)   return <div className="py-10 text-center text-red-600">Error: {error}</div>
+  if (!items.length) return <div className="py-10 text-center opacity-70">Sin resultados.</div>
 
   return (
-    <section className="container-edge my-6">
-      <h2 className="text-xl font-bold mb-3">El momento es ahorrar </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        {items.map(p => <ProductCard key={p.id} p={p} onAdd={handleAdd} />)}
-      </div>
-    </section>
+    <motion.div
+      layout
+      className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
+      {items.map((p, i) => (
+        <motion.div
+          key={p.id}
+          initial={{ y: 8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.03 * i, duration: 0.25 }}
+        >
+          <ProductCard p={p} />
+        </motion.div>
+      ))}
+    </motion.div>
   )
 }

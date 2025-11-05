@@ -1,18 +1,40 @@
-import React from 'react'
-import { motion } from 'framer-motion'
+import React from 'react';
+import { motion } from 'framer-motion';
+import { addToCart } from '../api/api';
 
-export default function ProductCard({p, onAdd}){
+export default function ProductCard({ p }) {
+  const onAdd = async () => {
+    try{
+      await addToCart(p.id, 1);
+      // avisar a la app que cambió el carrito
+      window.dispatchEvent(new CustomEvent('cart:updated'));
+      alert('✅ Agregado al carrito');
+    }catch(e){
+      if(String(e).includes('401')) alert('⚠️ Inicia sesión para agregar al carrito');
+      else alert('❌ ' + (e.message || 'Error al agregar'));
+    }
+  };
+
   return (
-    <motion.div layout className="card p-3 flex flex-col" whileHover={{ y:-2 }}>
-      <div className="aspect-[4/3] rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-        <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-      </div>
-      <div className="mt-3">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 15 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: .25 }}
+      className="card overflow-hidden hover:shadow-lg transition-shadow"
+    >
+      <img src={p.image_url} alt={p.name} className="w-full h-40 object-cover" />
+      <div className="p-3">
         <h3 className="font-semibold line-clamp-2">{p.name}</h3>
-        <p className="text-cruceño-green font-bold mt-1">Bs. {Number(p.price).toFixed(2)}</p>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">Garantía: {p.warranty_months} meses</p>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="font-bold">Bs. {Number(p.price).toFixed(2)}</span>
+          <span className="text-xs opacity-70">Stock: {p.stock}</span>
+        </div>
+        <button onClick={onAdd} className="btn btn-primary w-full mt-3">
+          Agregar al carrito
+        </button>
       </div>
-      <button onClick={()=>onAdd?.(p)} className="btn btn-primary mt-auto">Agregar al carrito</button>
     </motion.div>
-  )
+  );
 }
