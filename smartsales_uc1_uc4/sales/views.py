@@ -5,6 +5,10 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.db import transaction
 from django.db.models import Q
+from rest_framework.views import APIView
+from django.core.cache import cache
+from django.core.mail import send_mail
+from random import randint
 
 
 from .serializers import (
@@ -76,6 +80,56 @@ class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return UserAddress.objects.filter(user=self.request.user)
+
+
+# --- Verificación (envío de código y verificación) ---
+class SendVerificationCodeView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        channel = request.data.get('channel', 'email')  # email | sms | whatsapp
+        email = request.data.get('email')
+        phone = request.data.get('phone')
+        code = f"{randint(0,999999):06d}"
+        if channel == 'email' and email:
+            cache.set(f"verify:email:{email}", code, timeout=600)
+            try:
+                send_mail(
+                    subject='PercyStore: Código de verificación',
+                    message=f'Tu código es {code}',
+                    from_email='no-reply@percystore.local',
+                    recipient_list=[email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
+            return Response({'ok': True})
+        elif channel in ('sms','whatsapp') and phone:
+            # Simulación: guardamos el código y lo devolvemos en dev
+            cache.set(f"verify:tel:{phone}", code, timeout=600)
+            return Response({'ok': True, 'dev_only_code': code})
+        return Response({'ok': False, 'detail': 'Parámetros inválidos'}, status=400)
+
+
+class VerifyCodeView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        channel = request.data.get('channel', 'email')
+        email = request.data.get('email')
+        phone = request.data.get('phone')
+        code = request.data.get('code')
+        if channel == 'email' and email and code:
+            saved = cache.get(f"verify:email:{email}")
+            if saved and saved == code:
+                cache.delete(f"verify:email:{email}")
+                return Response({'ok': True})
+        if channel in ('sms','whatsapp') and phone and code:
+            saved = cache.get(f"verify:tel:{phone}")
+            if saved and saved == code:
+                cache.delete(f"verify:tel:{phone}")
+                return Response({'ok': True})
+        return Response({'ok': False, 'detail': 'Código inválido'}, status=400)
 
 
 # ───────────────────────────

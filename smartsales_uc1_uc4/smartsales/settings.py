@@ -73,7 +73,7 @@ DATABASES = {
 }
 
 # ============================================================
-# VALIDADORES DE CONTRASEÑA
+# VALIDADORES DE CONTRASEÃ‘A
 # ============================================================
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -81,7 +81,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # ============================================================
-# CONFIGURACIÓN DE IDIOMA Y ZONA HORARIA
+# CONFIGURACIÃ“N DE IDIOMA Y ZONA HORARIA
 # ============================================================
 LANGUAGE_CODE = 'es'
 TIME_ZONE = 'America/La_Paz'
@@ -89,7 +89,7 @@ USE_I18N = True
 USE_TZ = True
 
 # ============================================================
-# CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS
+# CONFIGURACIÃ“N DE ARCHIVOS ESTÃTICOS
 # ============================================================
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -115,7 +115,7 @@ SIMPLE_JWT = {
 }
 
 # ============================================================
-# CONFIGURACIÓN CORS (para el front en Vite)
+# CONFIGURACIÃ“N CORS (para el front en Vite)
 # ============================================================
 CORS_ALLOW_ALL_ORIGINS = True
 # CORS_ALLOWED_ORIGINS = [
@@ -123,3 +123,4 @@ CORS_ALLOW_ALL_ORIGINS = True
 #     "http://127.0.0.1:5173",
 # ]
 APPEND_SLASH = False
+\n\n# Email backend (dev)\nif DEBUG:\n    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'\n
