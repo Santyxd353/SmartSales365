@@ -38,13 +38,13 @@ export default function Orders(){
     }
   }
 
-  if(loading) return <div className="container-edge py-10">Cargando pedidos…</div>
+  if(loading) return <div className="container-edge py-10">Cargando pedidosâ€¦</div>
   if(error) return <div className="container-edge py-10 text-red-600">{error}</div>
 
   return (
     <section className="container-edge py-8">
       <h2 className="text-2xl font-bold mb-4">Mis pedidos</h2>
-      {!items.length && <div className="opacity-70">Aún no tienes pedidos.</div>}
+      {!items.length && <div className="opacity-70">AÃºn no tienes pedidos.</div>}
       <div className="space-y-3">
         {items.map((o, i)=> (
           <motion.div
@@ -62,7 +62,7 @@ export default function Orders(){
               <span className="px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-800 text-sm">{o.status}</span>
               <span className="px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-800 text-sm">{o.transaction_status}</span>
               <span className="font-bold">Bs. {Number(o.grand_total || 0).toFixed(2)}</span>
-              <button className="btn" onClick={()=>openReceipt(o.id)}>Ver comprobante PDF</button>
+              <button className="btn" onClick={()=>openReceipt(o.id)}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M6 2h7l5 5v15H6z"/></svg> Ver comprobante PDF</button>
             </div>
           </motion.div>
         ))}

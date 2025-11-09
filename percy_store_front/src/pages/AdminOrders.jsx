@@ -46,8 +46,8 @@ export default function AdminOrders(){
 
   return (
     <section className="container-edge py-8">
-      <h2 className="text-2xl font-bold mb-4">Administración de órdenes</h2>
-      <p className="opacity-80 mb-4">Busca por número de transacción para gestionar pagos o anulaciones.</p>
+      <h2 className="text-2xl font-bold mb-4">AdministraciÃƒÂ³n de ÃƒÂ³rdenes</h2>
+      <p className="opacity-80 mb-4">Busca por nÃƒÂºmero de transacciÃƒÂ³n para gestionar pagos o anulaciones.</p>
       <form onSubmit={search} className="flex gap-2 mb-4">
         <input
           value={trx}
@@ -55,8 +55,8 @@ export default function AdminOrders(){
           className="flex-1 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2"
           placeholder="TRX-YYYYMMDD-..."
         />
-        <button className="btn btn-primary" disabled={loading || !trx.trim()}>
-          {loading ? 'Buscando…' : 'Buscar'}
+        <button className="btn btn-primary" disabled={loading || !trx.trim()}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M10.5 3a7.5 7.5 0 1 1-4.743 13.36l-3.59 3.59a1.125 1.125 0 1 1-1.592-1.592l3.59-3.59A7.5 7.5 0 0 1 10.5 3Z"/></svg> 
+          {loading ? 'BuscandoÃ¢â‚¬Â¦' : 'Buscar'}
         </button>
       </form>
       {error && <div className="text-red-600 mb-3">{error}</div>}
@@ -71,7 +71,7 @@ export default function AdminOrders(){
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="font-semibold">TRX {order.transaction_number}</div>
-              <div className="text-sm opacity-75">{new Date(order.created_at).toLocaleString()} — Usuario #{order.user}</div>
+              <div className="text-sm opacity-75">{new Date(order.created_at).toLocaleString()} Ã¢â‚¬â€ Usuario #{order.user}</div>
             </div>
             <div className="flex items-center gap-2">
               <span className="px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-800 text-sm">{order.status}</span>
@@ -87,19 +87,19 @@ export default function AdminOrders(){
                 setOrder(updated)
                 alert('Pago confirmado')
               }catch(e){ alert(e.message) }
-            }}>Marcar como pagada</button>
+            }}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M2.25 12l7.5 7.5L21.75 7.5"/></svg> Marcar como pagada</button>
 
             <button className="btn" onClick={async()=>{
-              const reason = prompt('Motivo de anulación', 'Anulación por administración')
+              const reason = prompt('Motivo de anulaciÃƒÂ³n', 'AnulaciÃƒÂ³n por administraciÃƒÂ³n')
               if(reason === null) return
               try{
                 const updated = await voidOrder(order.id, reason)
                 setOrder(updated)
-                alert('Transacción anulada')
+                alert('TransacciÃƒÂ³n anulada')
               }catch(e){ alert(e.message) }
-            }}>Anular transacción</button>
+            }}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M6 18 18 6M6 6l12 12"/></svg> Anular transacciÃ³n</button>
 
-            <button className="btn" onClick={()=>openReceipt(order.id)}>Ver comprobante PDF</button>
+            <button className="btn" onClick={()=>openReceipt(order.id)}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M6 2h7l5 5v15H6z"/></svg> Ver comprobante PDF</button>
           </div>
         </motion.div>
       )}

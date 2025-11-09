@@ -22,7 +22,7 @@ export default function Login(){
       await doLogin(username.trim(), password)
       nav('/')
     } catch (e) {
-      setError(e?.message || 'No se pudo iniciar sesión')
+      setError(e?.message || 'No se pudo iniciar sesiÃ³n')
     } finally {
       setLoading(false)
     }
@@ -37,7 +37,7 @@ export default function Login(){
         className="max-w-md mx-auto card p-6"
       >
         <h1 className="text-2xl font-bold mb-2">Bienvenido a PercyStore</h1>
-        <p className="opacity-80 mb-6">Inicia sesión para continuar. Verde esperanza, fuerza cruceña.</p>
+        <p className="opacity-80 mb-6">Inicia sesiÃ³n para continuar. Verde esperanza, fuerza cruceÃ±a.</p>
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
             <label className="block text-sm mb-1">Usuario o email</label>
@@ -50,22 +50,22 @@ export default function Login(){
             />
           </div>
           <div>
-            <label className="block text-sm mb-1">Contraseña</label>
+            <label className="block text-sm mb-1">ContraseÃ±a</label>
             <input
               type="password"
               value={password}
               onChange={e=>setPassword(e.target.value)}
               className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2"
-              placeholder="••••••••"
+              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
               required
             />
           </div>
           {error && <div className="text-sm text-red-600">{error}</div>}
-          <button disabled={loading} className="btn btn-primary w-full">
-            {loading ? 'Ingresando…' : 'Iniciar sesión'}
+          <button disabled={loading} className="btn btn-primary w-full"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M16.5 3.75a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-9a.75.75 0 0 1-.75-.75V4.5a.75.75 0 0 1 .75-.75h9ZM21 9.75a.75.75 0 0 1 .75.75v9a.75.75 0 0 1-.75.75H3a.75.75 0 0 1-.75-.75v-9a.75.75 0 0 1 .75-.75h18Z"/></svg> 
+            {loading ? 'Ingresandoâ€¦' : 'Iniciar sesiÃ³n'}
           </button>
         </form>
-        <div className="text-sm mt-4 opacity-80">¿No tienes cuenta? <a href="/register" className="text-cruce��o-green font-semibold">Crear cuenta</a></div>
+        <div className="text-sm mt-4 opacity-80">Â¿No tienes cuenta? <a href="/register" className="text-cruceï¿½ï¿½o-green font-semibold">Crear cuenta</a></div>
       </motion.div>
     </section>
   )

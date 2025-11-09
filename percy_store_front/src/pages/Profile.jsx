@@ -40,14 +40,14 @@ export default function Profile(){
     finally{ setSaving(false) }
   }
 
-  if(loading) return <div className="container-edge py-10">Cargando perfil…</div>
+  if(loading) return <div className="container-edge py-10">Cargando perfilâ€¦</div>
   if(error) return <div className="container-edge py-10 text-red-600">{error}</div>
 
   return (
     <section className="container-edge py-10">
       <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{duration:0.25}} className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold mb-1">Mi cuenta</h1>
-        <p className="opacity-80 mb-6">Personaliza tus datos para una experiencia ágil.</p>
+        <p className="opacity-80 mb-6">Personaliza tus datos para una experiencia Ã¡gil.</p>
         <div className="card p-6">
           <form onSubmit={onSubmit} className="grid sm:grid-cols-2 gap-4">
             <div>
@@ -59,7 +59,7 @@ export default function Profile(){
               <input className="w-full rounded-lg border dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" value={form.last_name} onChange={e=>setForm(f=>({...f, last_name:e.target.value}))} />
             </div>
             <div>
-              <label className="block text-sm mb-1">Teléfono</label>
+              <label className="block text-sm mb-1">TelÃ©fono</label>
               <input className="w-full rounded-lg border dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
             </div>
             <div>
@@ -73,7 +73,7 @@ export default function Profile(){
             {ok && <div className="sm:col-span-2 text-sm text-green-600">{ok}</div>}
             {error && <div className="sm:col-span-2 text-sm text-red-600">{error}</div>}
             <div className="sm:col-span-2 flex gap-2 justify-end">
-              <button disabled={saving} className="btn btn-primary">{saving ? 'Guardando…' : 'Guardar cambios'}</button>
+              <button disabled={saving} className="btn btn-primary"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M17 3H7a2 2 0 0 0-2 2v14l7-3 7 3V5a2 2 0 0 0-2-2Z"/></svg> {saving ? 'Guardandoâ€¦' : 'Guardar cambios'}</button>
             </div>
           </form>
         </div>
