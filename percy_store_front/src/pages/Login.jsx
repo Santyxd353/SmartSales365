@@ -65,8 +65,8 @@ export default function Login(){
             {loading ? 'Ingresando…' : 'Iniciar sesión'}
           </button>
         </form>
+        <div className="text-sm mt-4 opacity-80">¿No tienes cuenta? <a href="/register" className="text-cruce��o-green font-semibold">Crear cuenta</a></div>
       </motion.div>
     </section>
   )
 }
-

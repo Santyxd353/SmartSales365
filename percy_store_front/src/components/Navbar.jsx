@@ -91,9 +91,10 @@ export default function Navbar(){
           {auth && (
             <>
               <Link to="/orders" className="btn">Mis pedidos</Link>
+              <Link to="/profile" className="btn">Mi cuenta</Link>
               {admin && <Link to="/admin/orders" className="btn">Admin</Link>}
               <button
-                onClick={()=>{ logout(); setAuth(false); setAdmin(false); nav('/') }}
+                onClick={()=>{ if(confirm('¿Cerrar sesión?')) { logout(); setAuth(false); setAdmin(false); nav('/') } }}
                 className="btn border border-neutral-300 dark:border-neutral-700"
               >Cerrar sesión</button>
             </>
@@ -134,10 +135,11 @@ export default function Navbar(){
             <div className="px-4 py-3 space-y-2">
               <Link to="/" className="block py-2" onClick={()=>setOpen(false)}>Inicio</Link>
               {auth && <Link to="/orders" className="block py-2" onClick={()=>setOpen(false)}>Mis pedidos</Link>}
+              {auth && <Link to="/profile" className="block py-2" onClick={()=>setOpen(false)}>Mi cuenta</Link>}
               {admin && <Link to="/admin/orders" className="block py-2" onClick={()=>setOpen(false)}>Admin</Link>}
               <Link to="/cart" className="block py-2" onClick={()=>setOpen(false)}>Carrito</Link>
               {!auth && <Link to="/login" className="block py-2" onClick={()=>setOpen(false)}>Iniciar sesión</Link>}
-              {auth && <button onClick={()=>{ logout(); setAuth(false); setAdmin(false); setOpen(false); nav('/') }} className="block py-2">Cerrar sesión</button>}
+              {auth && <button onClick={()=>{ if(confirm('¿Cerrar sesión?')) { logout(); setAuth(false); setAdmin(false); setOpen(false); nav('/') } }} className="block py-2">Cerrar sesión</button>}
             </div>
           </motion.nav>
         )}
@@ -145,4 +147,3 @@ export default function Navbar(){
     </header>
   )
 }
-

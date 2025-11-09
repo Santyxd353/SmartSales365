@@ -7,6 +7,8 @@ import ProductDetail from "./pages/ProductDetail";
 import Login from "./pages/Login";
 import Orders from "./pages/Orders";
 import AdminOrders from "./pages/AdminOrders";
+import Register from "./pages/Register";
+import Profile from "./pages/Profile";
 
 export default function App(){
   return (
@@ -17,6 +19,8 @@ export default function App(){
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="*" element={<div className="container-edge py-12">Página en construcción…</div>} />
