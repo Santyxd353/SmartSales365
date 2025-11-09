@@ -18,7 +18,7 @@ export default function PromoStrip(){
       <motion.div initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}} transition={{duration:.3}} className="grid sm:grid-cols-3 gap-3">
         {items.map((it,i)=> (
           <div key={i} className="card p-3 flex items-center gap-2">
-            <span className="text-cruce��o-green">{it.icon}</span>
+            <span className="text-green-700">{it.icon}</span>
             <span className="text-sm font-medium">{it.label}</span>
           </div>
         ))}
@@ -26,4 +26,3 @@ export default function PromoStrip(){
     </section>
   )
 }
-

@@ -38,13 +38,13 @@ export default function Orders(){
     }
   }
 
-  if(loading) return <div className="container-edge py-10">Cargando pedidosâ€¦</div>
+  if(loading) return <div className="container-edge py-10">Cargando pedidos…</div>
   if(error) return <div className="container-edge py-10 text-red-600">{error}</div>
 
   return (
     <section className="container-edge py-8">
       <h2 className="text-2xl font-bold mb-4">Mis pedidos</h2>
-      {!items.length && <div className="opacity-70">AÃºn no tienes pedidos.</div>}
+      {!items.length && <div className="opacity-70">AÃƒÂºn no tienes pedidos.</div>}
       <div className="space-y-3">
         {items.map((o, i)=> (
           <motion.div
