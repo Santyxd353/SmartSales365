@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { register as apiRegister, updateMe } from '../api/user'
@@ -103,7 +103,7 @@ export default function Register(){
                 <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={omitAvatar} onChange={e=>setOmitAvatar(e.target.checked)} /> Omitir</label>
               </div>
               <input value={avatar} onChange={e=>setAvatar(e.target.value)} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="https://…" disabled={omitAvatar} />
-            </div>
+            </div>`n            <div className="text-xs opacity-70 mt-1">Puedes pegar una URL o subir un archivo para generar una URL.</div>`n            <div className="flex items-center gap-2 mt-2">`n              <input type="file" accept="image/*" onChange={async (e)=>{ const f=e.target.files?.[0]; if(!f) return; try{ const { uploadAvatarFile } = await import("../api/user"); const url = await uploadAvatarFile(f); setAvatar(url); setOmitAvatar(false);}catch(err){ alert(err.message||"Error al subir"); } }} className="text-sm" />`n              {avatar && <img src={avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />}`n            </div>
             <div className="flex justify-between pt-2">
               <button type="button" onClick={()=>setStep(0)} className="btn">Atrás</button>
               <button type="submit" disabled={!canNextStep1} className="btn btn-primary">Continuar</button>
@@ -141,3 +141,4 @@ export default function Register(){
     </section>
   )
 }
+

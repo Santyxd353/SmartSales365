@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { listProducts } from '../api/api'   // <-- usar listProducts
 import ProductCard from './ProductCard'
 
-export default function ProductGrid({ q }) {
+export default function ProductGrid({ q, min, max, category, brand }) {
   const [loading, setLoading] = useState(true)
   const [items, setItems]     = useState([])
   const [error, setError]     = useState(null)
@@ -14,11 +14,23 @@ export default function ProductGrid({ q }) {
     const load = async () => {
       try {
         setLoading(true)
-        const list = await listProducts(q || '')
+        const query = [q || '', brand || ''].filter(Boolean).join(' ').trim()
+        const list = await listProducts(query)
         if (!alive) return
         // la API devuelve {results:[...]} cuando hay paginación;
         // si viene array plano, lo usamos tal cual.
-        const data = Array.isArray(list) ? list : (Array.isArray(list.results) ? list.results : [])
+        let data = Array.isArray(list) ? list : (Array.isArray(list.results) ? list.results : [])
+        // Filtro por precio local
+        const lo = Number(min) || 0
+        const hi = Number(max) || 0
+        if (lo || hi) {
+          data = data.filter(p => {
+            const price = Number(p.price)
+            if (lo && price < lo) return false
+            if (hi && price > hi) return false
+            return true
+          })
+        }
         setItems(data)
         setError(null)
       } catch (e) {
@@ -29,7 +41,7 @@ export default function ProductGrid({ q }) {
     }
     load()
     return () => { alive = false }
-  }, [q])
+  }, [q, min, max, category, brand])
 
   if (loading) return <div className="py-10 text-center opacity-70">Cargando catálogo…</div>
   if (error)   return <div className="py-10 text-center text-red-600">Error: {error}</div>
