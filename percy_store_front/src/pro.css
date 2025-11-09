@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn { @apply inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors; }
+  .btn-primary { background-color:#1b5e20; @apply text-white border-transparent hover:opacity-95; }
+  .btn-icon { @apply inline-flex items-center gap-2; }
+
+  .badge { @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs border border-neutral-300 dark:border-neutral-700 bg-white/60 dark:bg-neutral-900/60 backdrop-blur; }
+  .card { @apply bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-soft; }
+}
+

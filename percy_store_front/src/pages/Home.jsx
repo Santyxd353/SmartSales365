@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ProductGrid from '../components/ProductGrid';
 import HeroBanner from '../components/HeroBanner';
+import PromoStrip from '../components/PromoStrip';
 
 export default function Home(){
   const [q, setQ] = useState('');
@@ -8,6 +9,7 @@ export default function Home(){
   return (
     <>
       <HeroBanner />
+      <PromoStrip />
       <section className="container-edge py-8">
         <div className="flex items-center gap-2 mb-4">
           <input
