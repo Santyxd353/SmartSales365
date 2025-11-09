@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toggleTheme, loadTheme } from '../utils/theme'
 import { getCart } from '../api/api'
+import { isLoggedIn, logout, isAdmin } from '../utils/auth'
 
 export default function Navbar(){
+  const nav = useNavigate()
   const [open, setOpen]   = useState(false)
   const [theme, setTheme] = useState('light')
   const [count, setCount] = useState(0)
+  const [auth, setAuth]   = useState(isLoggedIn())
+  const [admin, setAdmin] = useState(isAdmin())
 
   // tema
   useEffect(()=>{ setTheme(loadTheme()) }, [])
@@ -28,8 +32,20 @@ export default function Navbar(){
     return ()=> window.removeEventListener('cart:updated', h)
   }, [])
 
+  // sesión
+  useEffect(()=>{
+    const sync = () => {
+      setAuth(isLoggedIn())
+      setAdmin(isAdmin())
+    }
+    sync()
+    const h = () => sync()
+    window.addEventListener('auth:changed', h)
+    return () => window.removeEventListener('auth:changed', h)
+  }, [])
+
   return (
-    <header className="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/80 backdrop-blur border-b border-cruceño-green">
+    <header className="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/80 backdrop-blur border-b border-cruce��o-green">
       <div className="container-edge h-[var(--header-h)] flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center gap-3">
@@ -38,17 +54,17 @@ export default function Navbar(){
             className="md:hidden p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800"
             aria-label="Abrir menú"
           >
-            <span className="block w-6 h-0.5 bg-cruceño-green mb-1"></span>
-            <span className="block w-6 h-0.5 bg-cruceño-green mb-1"></span>
-            <span className="block w-6 h-0.5 bg-cruceño-green"></span>
+            <span className="block w-6 h-0.5 bg-cruce��o-green mb-1"></span>
+            <span className="block w-6 h-0.5 bg-cruce��o-green mb-1"></span>
+            <span className="block w-6 h-0.5 bg-cruce��o-green"></span>
           </button>
 
           <Link to="/" className="text-2xl font-extrabold tracking-tight leading-none">
-            <span className="text-cruceño-green">Percy</span>
-            <span className="text-cruceño-red">Store</span>
+            <span className="text-cruce��o-green">Percy</span>
+            <span className="text-cruce��o-red">Store</span>
           </Link>
 
-          <span className="hidden sm:inline text-[11px] sm:text-xs ml-2 px-2 py-1 rounded-full bg-cruceño-green/10 text-cruceño-green font-semibold">
+          <span className="hidden sm:inline text-[11px] sm:text-xs ml-2 px-2 py-1 rounded-full bg-cruce��o-green/10 text-cruce��o-green font-semibold">
             A Santa Cruz no la para nadie
           </span>
         </div>
@@ -68,16 +84,26 @@ export default function Navbar(){
             className="btn border border-neutral-300 dark:border-neutral-700"
             title="Cambiar tema"
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? '🌙' : '☀️'}
           </button>
 
-          <Link to="/login" className="btn">Iniciar sesión</Link>
+          {!auth && <Link to="/login" className="btn">Iniciar sesión</Link>}
+          {auth && (
+            <>
+              <Link to="/orders" className="btn">Mis pedidos</Link>
+              {admin && <Link to="/admin/orders" className="btn">Admin</Link>}
+              <button
+                onClick={()=>{ logout(); setAuth(false); setAdmin(false); nav('/') }}
+                className="btn border border-neutral-300 dark:border-neutral-700"
+              >Cerrar sesión</button>
+            </>
+          )}
 
           <Link to="/cart" className="btn btn-primary relative">
             Carrito
             {count > 0 && (
               <span
-                className="absolute -top-2 -right-2 bg-cruceño-red text-white text-xs rounded-full px-2 py-0.5"
+                className="absolute -top-2 -right-2 bg-cruce��o-red text-white text-xs rounded-full px-2 py-0.5"
                 aria-label={`Productos en carrito: ${count}`}
               >
                 {count}
@@ -106,9 +132,12 @@ export default function Navbar(){
             className="md:hidden overflow-hidden border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900"
           >
             <div className="px-4 py-3 space-y-2">
-              <Link to="/" className="block py-2">Inicio</Link>
-              <Link to="/profile" className="block py-2">Mi cuenta</Link>
-              <Link to="/cart" className="block py-2">Carrito</Link>
+              <Link to="/" className="block py-2" onClick={()=>setOpen(false)}>Inicio</Link>
+              {auth && <Link to="/orders" className="block py-2" onClick={()=>setOpen(false)}>Mis pedidos</Link>}
+              {admin && <Link to="/admin/orders" className="block py-2" onClick={()=>setOpen(false)}>Admin</Link>}
+              <Link to="/cart" className="block py-2" onClick={()=>setOpen(false)}>Carrito</Link>
+              {!auth && <Link to="/login" className="block py-2" onClick={()=>setOpen(false)}>Iniciar sesión</Link>}
+              {auth && <button onClick={()=>{ logout(); setAuth(false); setAdmin(false); setOpen(false); nav('/') }} className="block py-2">Cerrar sesión</button>}
             </div>
           </motion.nav>
         )}
@@ -116,3 +145,4 @@ export default function Navbar(){
     </header>
   )
 }
+

@@ -35,6 +35,51 @@ export async function listProducts(q=''){
   if(!r.ok) throw new Error('No se pudo cargar catálogo');
   return r.json();
 }
+
+// ---- Órdenes (UC7, UC11, UC12)
+export async function getMyOrders(){
+  const r = await fetch(`${BASE}/orders/mine/`, { headers: authHeaders({'Accept':'application/json'}) })
+  if(r.status === 401) throw new Error('Necesitás iniciar sesión')
+  if(!r.ok) throw new Error('No se pudieron cargar tus órdenes')
+  return r.json()
+}
+
+export async function getOrderByTransaction(trx){
+  if(!trx) throw new Error('Ingresa un número de transacción')
+  const r = await fetch(`${BASE}/orders/by-transaction/${encodeURIComponent(trx)}/`, { headers: authHeaders({'Accept':'application/json'}) })
+  if(r.status === 401) throw new Error('No autorizado')
+  if(r.status === 403) throw new Error('Solo administradores')
+  if(!r.ok) throw new Error('No se encontró la orden')
+  return r.json()
+}
+
+export async function markOrderPaid(id, method = 'manual'){
+  const r = await fetch(`${BASE}/orders/${id}/mark-paid/`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ method })
+  })
+  if(r.status === 401) throw new Error('No autorizado')
+  if(r.status === 403) throw new Error('Solo administradores')
+  if(!r.ok) throw new Error('No se pudo marcar como pagada')
+  return r.json()
+}
+
+export async function voidOrder(id, reason = 'Anulación por administración'){
+  const r = await fetch(`${BASE}/orders/${id}/void/`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ reason })
+  })
+  if(r.status === 401) throw new Error('No autorizado')
+  if(r.status === 403) throw new Error('Solo administradores')
+  if(!r.ok) throw new Error('No se pudo anular la transacción')
+  return r.json()
+}
+
+export function receiptUrl(id){
+  return `${BASE}/orders/${id}/receipt.pdf`
+}
 export async function getProduct(id){
   const r = await fetch(`${BASE}/products/${id}`, {headers: {'Accept':'application/json'}});
   if(!r.ok) throw new Error('Producto no encontrado');
