@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { register as apiRegister, updateMe, uploadAvatarFile, sendCode, verifyCode } from '../api/user'
+import { register as apiRegister, updateMe, uploadAvatarFile, verifyCode } from '../api/user'
+import { sendCodeDetailed } from '../api/sendcode'
 import { login as doLogin } from '../utils/auth'
 
 export default function Register(){
@@ -152,7 +153,7 @@ export default function Register(){
                 onClick={async()=>{
                   try{
                     setError('')
-                    const res = await sendCode({ channel:'email', email: email.trim() })
+                    const res = await sendCodeDetailed({ channel:'email', email: email.trim() })
                     setSent(true)
                     if(res?.dev_only_code){ setError(`Código de prueba (DEV): ${res.dev_only_code}`) }
                   }catch(e){ setError(e?.message || 'No se pudo enviar el código') }
@@ -188,4 +189,3 @@ export default function Register(){
     </section>
   )
 }
-

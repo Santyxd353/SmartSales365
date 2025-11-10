@@ -138,10 +138,13 @@ class SendVerificationCodeView(APIView):
                     message=f'Tu cÃ³digo es {code}',
                     from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@percystore.local'),
                     recipient_list=[email],
-                    fail_silently=True,
+                    fail_silently=False,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                # Si falla el correo, en DEBUG devolvemos el código para pruebas; en prod informamos el error
+                if getattr(settings, 'DEBUG', False):
+                    return Response({'ok': True, 'dev_only_code': code, 'warning': str(e)})
+                return Response({'ok': False, 'detail': 'No se pudo enviar el correo. Revisa la configuración SMTP.'}, status=500)
             return Response({'ok': True})
         elif channel in ('sms','whatsapp') and phone:
             sid = os.environ.get('TWILIO_ACCOUNT_SID')

@@ -23,10 +23,29 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ['email', 'username', 'password', 'full_name']
         extra_kwargs = {'username': {'required': False, 'allow_blank': True}}
 
+    def validate(self, attrs):
+        email = (attrs.get('email') or '').strip()
+        username = (attrs.get('username') or email).strip()
+        errors = {}
+        # Email válido y único
+        try:
+            serializers.EmailField().run_validation(email)
+        except serializers.ValidationError:
+            errors['email'] = ['Ingresa un correo válido.']
+        if email and User.objects.filter(email__iexact=email).exists():
+            errors['email'] = ['Este correo ya está en uso.']
+        # Username único (por si no usa el correo como username)
+        if username and User.objects.filter(username__iexact=username).exists():
+            errors['username'] = ['Ya existe un usuario con este nombre.']
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
+
     def create(self, validated_data):
         full_name = validated_data.pop('full_name', '')
         username = validated_data.get('username') or validated_data['email']
         password = validated_data.pop('password')
+        # Validación de contraseña según reglas de Django
         validate_password(password)
         user = User.objects.create_user(
             username=username,
