@@ -1,10 +1,10 @@
 // src/components/ProductGrid.jsx
 import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { listProducts } from '../api/api'   // <-- usar listProducts
+import { listProducts } from '../api/api'
 import ProductCard from './ProductCard'
 
-export default function ProductGrid({ q, min, max, category, brand }) {
+export default function ProductGrid({ q, min, max, category, brand, in_stock }) {
   const [loading, setLoading] = useState(true)
   const [items, setItems]     = useState([])
   const [error, setError]     = useState(null)
@@ -14,23 +14,18 @@ export default function ProductGrid({ q, min, max, category, brand }) {
     const load = async () => {
       try {
         setLoading(true)
-        const query = [q || '', brand || ''].filter(Boolean).join(' ').trim()
-        const list = await listProducts(query)
-        if (!alive) return
-        // la API devuelve {results:[...]} cuando hay paginación;
-        // si viene array plano, lo usamos tal cual.
-        let data = Array.isArray(list) ? list : (Array.isArray(list.results) ? list.results : [])
-        // Filtro por precio local
-        const lo = Number(min) || 0
-        const hi = Number(max) || 0
-        if (lo || hi) {
-          data = data.filter(p => {
-            const price = Number(p.price)
-            if (lo && price < lo) return false
-            if (hi && price > hi) return false
-            return true
-          })
+        const params = {
+          q: (q || '').trim(),
+          brand: (brand || '').trim(),
+          category: category && category !== 'Todas' ? category : '',
+          min: min || '',
+          max: max || '',
+          in_stock: in_stock || ''
         }
+        const list = await listProducts(params)
+        if (!alive) return
+        // la API puede devolver {results:[...]} cuando hay paginación; si es array, lo usamos tal cual
+        const data = Array.isArray(list) ? list : (Array.isArray(list.results) ? list.results : [])
         setItems(data)
         setError(null)
       } catch (e) {

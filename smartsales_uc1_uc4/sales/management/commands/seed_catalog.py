@@ -29,6 +29,14 @@ DATA = {
 
         # Lavado & Secado
         dict(name='Lavadora 10kg Carga Frontal', brand='Whirlpool', category='Lavado & Secado', description='Eco wash, panel digital', color='Blanco', size='10kg', price=3199.00, stock=5, image_url='https://picsum.photos/seed/lavadora10/600/400', warranty_months=24),
+
+        # Extras
+        dict(name='TV 55" 4K QLED', brand='Samsung', category='Televisores', description='QLED 55 pulgadas', color='Negro', size='55"', price=3999.00, stock=9, image_url='https://picsum.photos/seed/tv55q/600/400', warranty_months=24),
+        dict(name='Soundbar 3.1', brand='LG', category='Audio', description='Barra de sonido 3.1 con subwoofer', color='Negro', size='Único', price=1299.00, stock=12, image_url='https://picsum.photos/seed/soundbar31/600/400', warranty_months=12),
+        dict(name='Heladera 380L No Frost', brand='Mabe', category='Refrigeración', description='380L No Frost', color='Plata', size='380L', price=3899.00, stock=4, image_url='https://picsum.photos/seed/fridge380/600/400', warranty_months=24),
+        dict(name='Aire Acondicionado 18000 BTU', brand='Whirlpool', category='Climatización', description='Split 18000 BTU', color='Blanco', size='18000 BTU', price=3599.00, stock=5, image_url='https://picsum.photos/seed/ac18000/600/400', warranty_months=24),
+        dict(name='Lavasecadora 10.5/7kg', brand='LG', category='Lavado & Secado', description='Lava 10.5kg / Seca 7kg', color='Blanco', size='10.5/7kg', price=4999.00, stock=3, image_url='https://picsum.photos/seed/lavasecadora/600/400', warranty_months=24),
+        dict(name='Horno eléctrico 45L', brand='Philips', category='Electrodomésticos', description='Horno eléctrico 45 litros', color='Negro', size='45L', price=699.00, stock=14, image_url='https://picsum.photos/seed/horno45/600/400', warranty_months=12),
     ],
 }
 

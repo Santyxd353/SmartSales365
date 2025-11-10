@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { register as apiRegister, updateMe, uploadAvatarFile } from '../api/user'
+import { register as apiRegister, updateMe, uploadAvatarFile, sendCode, verifyCode } from '../api/user'
 import { login as doLogin } from '../utils/auth'
 
 export default function Register(){
@@ -14,38 +14,58 @@ export default function Register(){
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
 
-  // Paso 1: perfil
-  const [country, setCountry] = useState('+591')
-  const [phone, setPhone] = useState('')
+  // Paso 1: perfil (sin teléfono)
   const [birthdate, setBirthdate] = useState('')
 
   // Paso 2: foto (opcional)
   const [avatar, setAvatar] = useState('')
   const [skipAvatar, setSkipAvatar] = useState(false)
 
-  // Paso 3: verificación
-  const [via, setVia] = useState('email')
+  // Paso 3: verificación por email
   const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [offerLogin, setOfferLogin] = useState(false)
 
-  const canNext0 = fullName.trim().length>1 && /@/.test(email) && password.length>=6 && password===confirm
-  const canNext1 = phone.trim().length>=6 && !!birthdate
+  // Validaciones
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const isEmailValid = emailRe.test(email.trim())
+  const nameError = fullName && fullName.trim().length<=1 ? 'Ingresa tu nombre completo' : ''
+  const emailError = email && !isEmailValid ? 'Ingresa un correo válido' : ''
+  const pwdError = password && password.length<6 ? 'Mínimo 6 caracteres' : ''
+  const confirmError = confirm && confirm!==password ? 'Las contraseñas no coinciden' : ''
+  const canNext0 = !nameError && !emailError && !pwdError && !confirmError && fullName && email && password && confirm
+  const canNext1 = true
   const canSubmit = sent && code.trim().length===6
 
   async function finishSignup(){
     setLoading(true); setError('')
     try{
+      // Verificar código primero (email)
+      const vres = await verifyCode({ email: email.trim(), code, channel: 'email' })
+      if(!vres?.ok) throw new Error('Código inválido')
+
+      // Crear cuenta y completar perfil
       await apiRegister({ email: email.trim(), password, full_name: fullName.trim(), username: email.trim() })
       await doLogin(email.trim(), password)
       const parts = fullName.trim().split(' ')
       const first_name = parts[0] || ''
       const last_name = parts.slice(1).join(' ')
-      await updateMe({ first_name, last_name, phone: `${country}${phone.trim()}`, birthdate, avatar_url: skipAvatar ? '' : avatar.trim() })
+      await updateMe({ first_name, last_name, birthdate, avatar_url: skipAvatar ? '' : avatar.trim() })
       nav('/')
-    }catch(e){ setError(e?.message || 'No se pudo crear la cuenta') }
+    }catch(e){
+      const msg = e?.message || 'No se pudo crear la cuenta'
+      const fields = e?.fields || {}
+      const emailTaken = (fields.email || fields.username)
+      if(emailTaken){
+        setError('El correo ya está en uso. ¿Deseas iniciar sesión?')
+        setOfferLogin(true)
+      } else {
+        setError(msg)
+      }
+    }
     finally{ setLoading(false) }
   }
 
@@ -67,10 +87,12 @@ export default function Register(){
             <div>
               <label className="block text-sm mb-1">Nombre completo</label>
               <input value={fullName} onChange={e=>setFullName(e.target.value)} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="María Fernanda" required />
+              {nameError && <div className="text-xs mt-1 text-red-600">{nameError}</div>}
             </div>
             <div>
               <label className="block text-sm mb-1">Email</label>
-              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="tucorreo@dominio.com" required />
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="tucorreo@dominio.com" required aria-invalid={!!email && !isEmailValid} />
+              {emailError && <div className="text-xs mt-1 text-red-600">{emailError}</div>}
             </div>
             <div>
               <label className="block text-sm mb-1">Contraseña</label>
@@ -80,10 +102,11 @@ export default function Register(){
             <div>
               <label className="block text-sm mb-1">Confirmar contraseña</label>
               <input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="••••••••" required aria-invalid={confirm.length>0 && confirm!==password} />
-              {confirm.length>0 && confirm!==password && <div className="text-xs mt-1 text-red-600">Las contraseñas no coinciden</div>}
+              {confirmError && <div className="text-xs mt-1 text-red-600">{confirmError}</div>}
             </div>
-            <div className="flex gap-2 justify-end pt-2">
-              <button type="submit" disabled={!canNext0} className="btn btn-primary">Continuar</button>
+            <div className="flex gap-2 justify-between pt-2">
+              <div className="text-sm opacity-75">Al continuar aceptas los Términos y la Política de privacidad.</div>
+              <button disabled={!canNext0} className="btn btn-primary">Continuar</button>
             </div>
           </form>
         )}
@@ -91,88 +114,73 @@ export default function Register(){
         {step===1 && (
           <form onSubmit={(e)=>{ e.preventDefault(); if(canNext1) setStep(2) }} className="space-y-3">
             <div>
-              <label className="block text-sm mb-1">Teléfono</label>
-              <div className="flex gap-2">
-                <select value={country} onChange={(e)=>setCountry(e.target.value)} className="rounded-lg border dark:border-neutral-700 px-2 py-2 text-sm w-28">
-                  <option value="+591">+591 BO</option>
-                  <option value="+54">+54 AR</option>
-                  <option value="+57">+57 CO</option>
-                  <option value="+51">+51 PE</option>
-                  <option value="+52">+52 MX</option>
-                </select>
-                <input value={phone} onChange={e=>setPhone(e.target.value)} className="flex-1 rounded-lg border dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="70000000" required />
-              </div>
+              <label className="block text-sm mb-1">Fecha de nacimiento (opcional)</label>
+              <input type="date" value={birthdate} onChange={e=>setBirthdate(e.target.value)} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" />
             </div>
-            <div>
-              <label className="block text-sm mb-1">Fecha de nacimiento</label>
-              <input type="date" value={birthdate} onChange={e=>setBirthdate(e.target.value)} className="w-full rounded-lg border dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" required />
-            </div>
-            <div className="flex justify-between pt-2">
-              <button type="button" onClick={()=>setStep(0)} className="btn">Atrás</button>
-              <button type="submit" disabled={!canNext1} className="btn btn-primary">Continuar</button>
+            <div className="flex gap-2 justify-end pt-2">
+              <button type="button" className="btn" onClick={()=>setStep(0)}>Atrás</button>
+              <button className="btn btn-primary">Continuar</button>
             </div>
           </form>
         )}
 
         {step===2 && (
           <div className="space-y-3">
-            <p className="opacity-80">¿Quieres subir tu foto de perfil ahora? Puedes omitir este paso.</p>
-            {!skipAvatar && (
-              <div className="space-y-2">
-                <input type="file" accept="image/*" onChange={async (e)=>{ const f=e.target.files?.[0]; if(!f) return; try{ const url = await uploadAvatarFile(f); setAvatar(url);}catch(err){ alert(err.message||'Error al subir'); } }} className="text-sm" />
-                {avatar && <img src={avatar} alt="avatar" className="w-12 h-12 rounded-full object-cover" />}
-              </div>
-            )}
-            <div className="flex justify-between pt-2">
+            <div>
+              <label className="block text-sm mb-1">Foto de perfil (opcional)</label>
+              <input type="file" accept="image/*" onChange={async(e)=>{
+                const f = e.target.files?.[0]; if(!f) return;
+                const url = await uploadAvatarFile(f); setAvatar(url)
+              }} />
+              {avatar && <img alt="preview" src={avatar} className="mt-2 w-24 h-24 object-cover rounded-full" />}
+            </div>
+            <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={skipAvatar} onChange={e=>setSkipAvatar(e.target.checked)} /> Omitir foto</label>
+            <div className="flex gap-2 justify-end pt-2">
               <button className="btn" onClick={()=>setStep(1)}>Atrás</button>
-              <div className="flex gap-2">
-                <button className="btn" onClick={()=>{ setSkipAvatar(true); setStep(3) }}>Omitir</button>
-                <button className="btn btn-primary" onClick={()=> setStep(3)}>Continuar</button>
-              </div>
+              <button className="btn btn-primary" onClick={()=>setStep(3)}>Continuar</button>
             </div>
           </div>
         )}
 
         {step===3 && (
-          <form onSubmit={(e)=>{ e.preventDefault(); }} className="space-y-3">
-            <div>
-              <label className="block text-sm mb-1">Verificar por</label>
-              <div className="flex gap-3 text-sm">
-                <label className="inline-flex items-center gap-2"><input type="radio" name="via" checked={via==='email'} onChange={()=>setVia('email')} /> Email</label>
-                <label className="inline-flex items-center gap-2"><input type="radio" name="via" checked={via==='tel'} onChange={()=>setVia('tel')} /> Teléfono</label>
+          <div className="space-y-3">
+            <p className="opacity-80">Te enviaremos un código a tu correo.</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="btn"
+                onClick={async()=>{
+                  try{
+                    setError('')
+                    const res = await sendCode({ channel:'email', email: email.trim() })
+                    setSent(true)
+                    if(res?.dev_only_code){ setError(`Código de prueba (DEV): ${res.dev_only_code}`) }
+                  }catch(e){ setError(e?.message || 'No se pudo enviar el código') }
+                }}
+              >Enviar código</button>
+            </div>
+            {sent && (
+              <div>
+                <label className="block text-sm mb-1">Código</label>
+                <input value={code} onChange={e=>setCode(e.target.value)} className="w-full rounded-lg border dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="123456" />
               </div>
-            </div>
-            <div className="flex gap-2 items-end">
-              <div className="flex-1">
-                <label className="block text-sm mb-1">Código de verificación</label>
-                <input value={code} onChange={e=>setCode(e.target.value)} maxLength={6} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 tracking-widest" placeholder="123456" required />
-                {!sent && <div className="text-xs opacity-70 mt-1">Pulsa “Enviar código” para recibirlo.</div>}
+            )}
+            {error && (
+              <div className="text-sm text-red-600">
+                {error}
+                {offerLogin && (
+                  <span className="block mt-2">
+                    <button className="btn btn-primary" onClick={()=>nav('/login', { state:{ prefill: email.trim() } })}>Iniciar sesión</button>
+                    <button className="btn ml-2" onClick={()=>{ setOfferLogin(false); setError('') }}>Usar otro correo</button>
+                  </span>
+                )}
               </div>
-              <button type="button" className="btn" onClick={async()=>{
-                try{
-                  const payload = via==='email' ? {channel:'email', email} : {channel:'sms', phone: `${country}${phone}`}
-                  const r = await fetch('http://127.0.0.1:8000/api/auth/send-code', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-                  const data = await r.json()
-                  if(!r.ok || !data.ok) throw new Error(data.detail || 'No se pudo enviar el código')
-                  setSent(true)
-                  if(data.dev_only_code){ alert(`Código de verificación (dev): ${data.dev_only_code}`) }
-                }catch(err){ alert(err.message) }
-              }}>Enviar código</button>
+            )}
+            <div className="flex gap-2 justify-end pt-2">
+              <button className="btn" onClick={()=>setStep(2)}>Atrás</button>
+              <button disabled={!canSubmit || loading} onClick={finishSignup} className="btn btn-primary">{loading?'Creando…':'Crear cuenta'}</button>
             </div>
-            {error && <div className="text-sm text-red-600">{error}</div>}
-            <div className="flex justify-between pt-2">
-              <button type="button" onClick={()=>setStep(2)} className="btn">Atrás</button>
-              <button type="submit" disabled={!canSubmit || loading} className="btn btn-primary" onClick={async()=>{
-                try{
-                  const payload = via==='email' ? {channel:'email', email, code} : {channel:'sms', phone: `${country}${phone}`, code}
-                  const r = await fetch('http://127.0.0.1:8000/api/auth/verify-code', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-                  const data = await r.json()
-                  if(!r.ok || !data.ok) throw new Error(data.detail || 'Código inválido')
-                  await finishSignup()
-                }catch(err){ alert(err.message) }
-              }}>{loading ? 'Creando…' : 'Crear cuenta'}</button>
-            </div>
-          </form>
+          </div>
         )}
 
         <div className="text-sm mt-6 opacity-80">¿Ya tienes cuenta? <Link to="/login" className="text-green-700 font-semibold">Inicia sesión</Link></div>

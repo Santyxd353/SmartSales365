@@ -1,5 +1,5 @@
-// src/utils/auth.js
-// Helpers de autenticación para PercyStore
+﻿// src/utils/auth.js
+// Helpers de autenticaciÃ³n para PercyStore
 import { login as apiLogin, getAccess, clearAccess } from '../api/api'
 
 function parseJwt(token) {
@@ -17,7 +17,7 @@ function parseJwt(token) {
 
 export async function login(username, password) {
   const data = await apiLogin(username, password)
-  // Notificar a la app que cambió el estado de auth
+  // Notificar a la app que cambiÃ³ el estado de auth
   window.dispatchEvent(new CustomEvent('auth:changed'))
   return data
 }
@@ -50,4 +50,5 @@ export function getRoles() {
 export function isAdmin() {
   return getRoles().includes('admin')
 }
+
 

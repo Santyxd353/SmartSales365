@@ -5,6 +5,9 @@ __pycache__/
 .env
 .venv/
 venv/
+.venv312/
+*.bak
+smartsales_uc1_uc4/media/
 
 # Node / React
 node_modules/

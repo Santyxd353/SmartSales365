@@ -42,13 +42,13 @@ export default function ProductDetail(){
             onClick={async ()=>{
               try{
                 await addToCart(p.id, qty);
-                alert('Agregado al carrito ✅');
+                alert('Agregado al carrito.');
                 nav('/cart');
               }catch(e){
-                if(String(e.message).includes('iniciar sesión')) {
-                  alert('Iniciá sesión primero (pegá el token en localStorage).');
+                if(String(e.message).toLowerCase().includes('iniciar ses')) {
+                  alert('Inicia sesión primero.');
                 } else {
-                  alert('❌ ' + e.message);
+                  alert('Error: ' + e.message);
                 }
               }
             }}
@@ -61,3 +61,4 @@ export default function ProductDetail(){
     </section>
   );
 }
+

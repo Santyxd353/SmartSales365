@@ -7,6 +7,9 @@ import ProductDetail from "./pages/ProductDetail";
 import Login from "./pages/Login";
 import Orders from "./pages/Orders";
 import AdminOrders from "./pages/AdminOrders";
+import AdminProducts from "./pages/AdminProducts";
+import AdminUsers from "./pages/AdminUsers";
+import AdminReports from "./pages/AdminReports";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 
@@ -23,14 +26,18 @@ export default function App(){
         <Route path="/profile" element={<Profile />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/admin/orders" element={<AdminOrders />} />
-        <Route path="*" element={<div className="container-edge py-12">Página en construcción…</div>} />
+        <Route path="/admin/products" element={<AdminProducts />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/reports" element={<AdminReports />} />
+        <Route path="*" element={<div className="container-edge py-12">Página en construcción.</div>} />
       </Routes>
       <footer className="mt-12 border-t border-neutral-200 dark:border-neutral-800">
         <div className="container-edge py-8 text-sm flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="opacity-80">© {new Date().getFullYear()} PercyStore</p>
-          <p className="font-semibold text-cruceño-green">A Santa Cruz no la para nadie</p>
+          <p className="font-semibold text-green-700">A Santa Cruz no la para nadie</p>
         </div>
       </footer>
     </div>
   );
 }
+

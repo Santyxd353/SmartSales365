@@ -7,7 +7,8 @@ from dateutil.relativedelta import relativedelta  # pip install python-dateutil
 
 from .models import (
     UserProfile, UserAddress, Brand, Category, Product,
-    Cart, CartItem, Order, OrderItem
+    Cart, CartItem, Order, OrderItem,
+    SalesReport, AuditReport, AdminAuditLog
 )
 
 # ───────────────────────────
@@ -101,6 +102,97 @@ class ProductListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'price', 'stock', 'image_url', 'warranty_months']
+
+
+class ProductAdminWriteSerializer(serializers.ModelSerializer):
+    brand_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    category_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    brand = BrandSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'description', 'color', 'size', 'price', 'stock',
+            'image_url', 'warranty_months', 'is_active',
+            'brand', 'category', 'brand_id', 'category_id'
+        ]
+
+    def create(self, validated_data):
+        brand_id = validated_data.pop('brand_id', None)
+        category_id = validated_data.pop('category_id', None)
+        if brand_id:
+            validated_data['brand_id'] = brand_id
+        if category_id:
+            validated_data['category_id'] = category_id
+        # asignar creador si está en contexto
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            validated_data['created_by'] = request.user
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        brand_id = validated_data.pop('brand_id', None)
+        category_id = validated_data.pop('category_id', None)
+        if brand_id is not None:
+            instance.brand_id = brand_id
+        if category_id is not None:
+            instance.category_id = category_id
+        return super().update(instance, validated_data)
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField(read_only=True)
+    is_admin = serializers.BooleanField(source='profile.is_admin', required=False)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'full_name', 'is_staff', 'is_superuser', 'is_admin', 'password']
+        read_only_fields = ['is_superuser']
+
+    def get_full_name(self, obj):
+        fn = (obj.first_name + ' ' + obj.last_name).strip()
+        return fn or obj.username
+
+    def create(self, validated_data):
+        profile_data = validated_data.pop('profile', {}) if 'profile' in validated_data else {}
+        is_admin = profile_data.get('is_admin', False)
+        password = validated_data.pop('password', None)
+        user = User.objects.create(**validated_data)
+        if password:
+            user.set_password(password)
+            user.save()
+        # profile exists via signal
+        user.profile.is_admin = bool(is_admin)
+        user.profile.save(update_fields=['is_admin'])
+        return user
+
+    def update(self, instance, validated_data):
+        profile_data = validated_data.pop('profile', {}) if 'profile' in validated_data else {}
+        is_admin = profile_data.get('is_admin', None)
+        password = validated_data.pop('password', None)
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        if is_admin is not None:
+            instance.profile.is_admin = bool(is_admin)
+            instance.profile.save(update_fields=['is_admin'])
+        return instance
+
+
+class SalesReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalesReport
+        fields = ['id', 'created_by', 'created_at', 'filters', 'pdf_file']
+
+
+class AuditReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuditReport
+        fields = ['id', 'created_by', 'created_at', 'filters', 'pdf_file']
 
 # ───────────────────────────
 # CARRITO

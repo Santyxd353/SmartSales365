@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import bannerImg from '../img/santa-cruz-portada-536cf1b2.webp'  
+import bannerImg from '../img/santa-cruz-portada-536cf1b2.webp'
 
 export default function HeroBanner(){
   return (
@@ -27,3 +27,4 @@ export default function HeroBanner(){
     </section>
   )
 }
+

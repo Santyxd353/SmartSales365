@@ -12,7 +12,6 @@ export default function Orders(){
       try {
         setLoading(true)
         const data = await getMyOrders()
-        // API may return array or {results:[]}
         const list = Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : [])
         setItems(list)
         setError('')
@@ -44,7 +43,7 @@ export default function Orders(){
   return (
     <section className="container-edge py-8">
       <h2 className="text-2xl font-bold mb-4">Mis pedidos</h2>
-      {!items.length && <div className="opacity-70">AÃƒÂºn no tienes pedidos.</div>}
+      {!items.length && <div className="opacity-70">Aún no tienes pedidos.</div>}
       <div className="space-y-3">
         {items.map((o, i)=> (
           <motion.div

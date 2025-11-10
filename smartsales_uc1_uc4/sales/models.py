@@ -1,9 +1,16 @@
-from django.db import models
+﻿from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
+from django.conf import settings
 
-# ───────────────────────────
+try:
+    from django.db.models import JSONField  # Django >= 3.1
+except Exception:  # pragma: no cover
+    from django.contrib.postgres.fields import JSONField  # type: ignore
+
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # PERFIL Y DIRECCIONES
-# ───────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     phone = models.CharField(max_length=30, blank=True, null=True)
@@ -22,9 +29,9 @@ class UserAddress(models.Model):
     lng = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     is_default = models.BooleanField(default=False)
 
-# ───────────────────────────
-# CATÁLOGO
-# ───────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# CATÃLOGO
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class Brand(models.Model):
     name = models.CharField(max_length=120, unique=True)
 
@@ -47,9 +54,9 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-# ───────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # CARRITO (UC5)
-# ───────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class Cart(models.Model):
     STATUS_CHOICES = (('ACTIVE','ACTIVE'), ('CONVERTED','CONVERTED'), ('ABANDONED','ABANDONED'))
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='carts')
@@ -66,9 +73,9 @@ class CartItem(models.Model):
     class Meta:
         unique_together = ('cart', 'product')  # combinamos cantidades si repiten
 
-# ───────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # PEDIDOS (UC6)
-# ───────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class Order(models.Model):
     STATUS_CHOICES = (
         ('PENDING','PENDING'),
@@ -114,3 +121,52 @@ class OrderItem(models.Model):
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     line_total = models.DecimalField(max_digits=12, decimal_places=2)
+
+# ------------------------------
+# ADMIN / AUDITORÃA / REPORTES
+# ------------------------------
+
+class AdminAuditLog(models.Model):
+    ACTIONS = (
+        ('CREATE', 'CREATE'),
+        ('UPDATE', 'UPDATE'),
+        ('DELETE', 'DELETE'),
+        ('ADJUST_STOCK', 'ADJUST_STOCK'),
+        ('CREATE_USER', 'CREATE_USER'),
+        ('UPDATE_USER', 'UPDATE_USER'),
+        ('DELETE_USER', 'DELETE_USER'),
+        ('CHANGE_EMAIL', 'CHANGE_EMAIL'),
+        ('CHANGE_PHONE', 'CHANGE_PHONE'),
+    )
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    action = models.CharField(max_length=20, choices=ACTIONS)
+    model_name = models.CharField(max_length=80)
+    object_id = models.CharField(max_length=80)
+    before_data = JSONField(blank=True, null=True)
+    after_data = JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+def report_upload_path(instance, filename):
+    return f"reports/{filename}"
+
+
+class SalesReport(models.Model):
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    filters = JSONField()
+    pdf_file = models.FileField(upload_to=report_upload_path)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class AuditReport(models.Model):
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    filters = JSONField()
+    pdf_file = models.FileField(upload_to=report_upload_path)
+
+    class Meta:
+        ordering = ['-created_at']
+

@@ -49,7 +49,7 @@ export default function Cart(){
                     const c = await updateCartItem(it.id, q);
                     setCart(c);
                     window.dispatchEvent(new CustomEvent('cart:updated'));
-                  }catch(err){ alert('❌ ' + err.message); }
+                  }catch(err){ alert('Error: ' + err.message); }
                 }}
                 className="w-20 text-center rounded border dark:border-neutral-700 bg-white dark:bg-neutral-900"
               />
@@ -59,7 +59,7 @@ export default function Cart(){
                     const c = await deleteCartItem(it.id);
                     setCart(c);
                     window.dispatchEvent(new CustomEvent('cart:updated'));
-                  }catch(err){ alert('❌ ' + err.message); }
+                  }catch(err){ alert('Error: ' + err.message); }
                 }}
                 className="btn"
               >Quitar</button>
@@ -71,7 +71,7 @@ export default function Cart(){
             <span>Subtotal</span>
             <span className="font-bold">Bs. {total.toFixed(2)}</span>
           </div>
-          <button className="btn btn-primary w-full mt-4" onClick={()=>alert('Checkout pronto 😉')}>
+          <button className="btn btn-primary w-full mt-4" onClick={()=>alert('Checkout pronto')}>
             Ir a pagar
           </button>
         </div>
@@ -79,3 +79,4 @@ export default function Cart(){
     </section>
   );
 }
+

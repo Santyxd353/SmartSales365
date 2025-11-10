@@ -1,11 +1,18 @@
-from pathlib import Path
+﻿from pathlib import Path
 from datetime import timedelta
+import os
+try:
+    from dotenv import load_dotenv  # type: ignore
+    import os as _os
+    load_dotenv(_os.path.join(Path(__file__).resolve().parent.parent, '.env'), override=True)
+except Exception:
+    pass
 
+# Base settings
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'dev-secret-key-change-me'
-DEBUG = True
+SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-me')
+DEBUG = os.environ.get('DEBUG', '1').lower() in ('1','true','yes','on')
 ALLOWED_HOSTS = ['*']
-
 # ============================================================
 # APLICACIONES INSTALADAS
 # ============================================================
@@ -18,12 +25,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-   
-    'corsheaders',          
-    'rest_framework',       
+    'corsheaders',
+    'rest_framework',
     'rest_framework.authtoken',
 
-   
     'sales',
 ]
 
@@ -31,7 +36,7 @@ INSTALLED_APPS = [
 # MIDDLEWARE
 # ============================================================
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',           
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
 
     'django.middleware.security.SecurityMiddleware',
@@ -93,6 +98,8 @@ USE_TZ = True
 # ============================================================
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # ============================================================
 # DJANGO REST FRAMEWORK Y JWT
@@ -115,12 +122,25 @@ SIMPLE_JWT = {
 }
 
 # ============================================================
-# CONFIGURACIÃ“N CORS (para el front en Vite)
+# CORS (Vite/React)
 # ============================================================
 CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",
-#     "http://127.0.0.1:5173",
-# ]
 APPEND_SLASH = False
-\n\n# Email backend (dev)\nif DEBUG:\n    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'\n
+
+# ============================================================
+# EMAIL (SMTP si hay variables, de lo contrario consola)
+# ============================================================
+EMAIL_HOST = os.environ.get('EMAIL_HOST')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '0') or 0)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '').lower() in ('1','true','yes')
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', '').lower() in ('1','true','yes')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@percystore.local')
+
+if EMAIL_HOST:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+

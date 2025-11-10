@@ -16,7 +16,7 @@ export default function FilterBar({ value, onChange }){
         <input value={v.q || ''} onChange={(e)=> set({ q: e.target.value })} placeholder="Busca como en Amazon…" className="flex-1 rounded-lg border dark:border-neutral-700 px-3 py-2 text-sm" />
         <div className="flex items-center gap-2">
           <input type="number" min="0" value={v.min || ''} onChange={(e)=>set({ min: e.target.value })} placeholder="Min" className="w-24 rounded-lg border dark:border-neutral-700 px-3 py-2 text-sm" />
-          <span>—</span>
+          <span>a</span>
           <input type="number" min="0" value={v.max || ''} onChange={(e)=>set({ max: e.target.value })} placeholder="Max" className="w-24 rounded-lg border dark:border-neutral-700 px-3 py-2 text-sm" />
         </div>
       </div>

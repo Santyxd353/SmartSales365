@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { addToCart } from '../api/api';
 
@@ -6,12 +7,11 @@ export default function ProductCard({ p }) {
   const onAdd = async () => {
     try{
       await addToCart(p.id, 1);
-      // avisar a la app que cambió el carrito
       window.dispatchEvent(new CustomEvent('cart:updated'));
-      alert('✅ Agregado al carrito');
+      alert('¡Agregado al carrito!');
     }catch(e){
-      if(String(e).includes('401')) alert('⚠️ Inicia sesión para agregar al carrito');
-      else alert('❌ ' + (e.message || 'Error al agregar'));
+      if(String(e).includes('401')) alert('Inicia sesión para agregar al carrito');
+      else alert('Error: ' + (e.message || 'No se pudo agregar'));
     }
   };
 
@@ -24,11 +24,13 @@ export default function ProductCard({ p }) {
       transition={{ duration: .25 }}
       className="card overflow-hidden group hover:shadow-lg transition-all"
     >
-      <div className="overflow-hidden">
+      <Link to={`/product/${p.id}`} className="overflow-hidden block">
         <img src={p.image_url} alt={p.name} className="w-full h-40 object-cover group-hover:scale-[1.02] transition-transform" />
-      </div>
+      </Link>
       <div className="p-3">
-        <h3 className="font-semibold line-clamp-2 min-h-[2.5rem]">{p.name}</h3>
+        <Link to={`/product/${p.id}`} className="font-semibold line-clamp-2 min-h-[2.5rem] hover:underline">
+          {p.name}
+        </Link>
         <div className="mt-2 flex items-center justify-between">
           <span className="font-bold">Bs. {Number(p.price).toFixed(2)}</span>
           <span className="text-xs opacity-70">{p.warranty_months ? `${p.warranty_months}m garantía` : `Stock: ${p.stock}`}</span>
@@ -41,3 +43,4 @@ export default function ProductCard({ p }) {
     </motion.div>
   );
 }
+

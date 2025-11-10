@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { login as doLogin, isLoggedIn } from '../utils/auth'
 
 export default function Login(){
   const nav = useNavigate()
-  const [username, setUsername] = useState('')
+  const loc = useLocation()
+  const [username, setUsername] = useState(loc.state?.prefill || '')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -28,11 +29,11 @@ export default function Login(){
     <section className="container-edge py-10">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="max-w-md mx-auto card p-6">
         <h1 className="text-2xl font-bold mb-2">Bienvenido a PercyStore</h1>
-        <p className="opacity-80 mb-6">Inicia sesión para continuar. Verde esperanza, fuerza cruceña.</p>
+        <p className="opacity-80 mb-6">Inicia sesión con tu correo o teléfono. Verde esperanza, fuerza cruceña.</p>
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm mb-1">Usuario o email</label>
-            <input value={username} onChange={e=>setUsername(e.target.value)} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="tu_usuario" required />
+            <label className="block text-sm mb-1">Correo o teléfono</label>
+            <input value={username} onChange={e=>setUsername(e.target.value)} className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="tucorreo@dominio.com o 70000000" required />
           </div>
           <div>
             <label className="block text-sm mb-1">Contraseña</label>
@@ -44,7 +45,7 @@ export default function Login(){
             {loading ? 'Ingresando…' : 'Iniciar sesión'}
           </button>
         </form>
-        <div className="text-sm mt-4 opacity-80">¿No tienes cuenta? <Link to="/register" className="text-green-700 font-semibold inline-flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 12a5 5 0 1 0 0-10 5 5 5 0 0 0 0 10Z"/><path d="M3 22a9 9 0 1 1 18 0v1H3v-1Z"/></svg>Crear cuenta</Link></div>
+        <div className="text-sm mt-4 opacity-80">¿No tienes cuenta? <Link to="/register" className="text-green-700 font-semibold inline-flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 12a5 5 0  1 0 0-10 5 5 0  0 0 0 10Z"/><path d="M3 22a9 9 0  1 1 18 0v1H3v-1Z"/></svg>Crear cuenta</Link></div>
       </motion.div>
     </section>
   )
