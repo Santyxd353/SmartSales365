@@ -24,39 +24,7 @@ Backend (Django)
 - `python smartsales_uc1_uc4/manage.py migrate`
 - `python smartsales_uc1_uc4/manage.py runserver`
 
-Twilio — WhatsApp Sandbox (pasos)
 
-1) Crea cuenta en https://www.twilio.com/ (trial funciona)
-2) En consola Twilio: Messaging → Try it out → WhatsApp Sandbox
-3) Sigue las instrucciones en pantalla para unirte al sandbox:
-   - Envía por WhatsApp el mensaje “join <palabras>” al número de sandbox (ej. +1 415 523 8886)
-   - Twilio confirmará que tu número está unido al sandbox
-4) En `.env` coloca:
-   - `TWILIO_ACCOUNT_SID=...`
-   - `TWILIO_AUTH_TOKEN=...`
-   - `TWILIO_FROM_WHATSAPP=whatsapp:+14155238886` (o el número de tu sandbox)
-5) Prueba envío de código por WhatsApp:
-   - `python smartsales_uc1_uc4/manage.py send_test_code --channel whatsapp --to +<código_pais><número>`
-   - Si estás en sandbox, Twilio solo entregará al número que se unió con el código “join ...”
-
-Twilio — SMS (pasos)
-
-1) Compra o habilita un número SMS en Twilio
-2) Coloca en `.env`:
-   - `TWILIO_FROM_SMS=+1XXXXXXXXXX`
-3) Prueba:
-   - `python smartsales_uc1_uc4/manage.py send_test_code --channel sms --to +<código_pais><número>`
-
-Email (SMTP)
-
-1) SendGrid (recom.) o Gmail (con App Password)
-2) `.env` (ejemplo SendGrid):
-   - `EMAIL_HOST=smtp.sendgrid.net`
-   - `EMAIL_PORT=587`
-   - `EMAIL_HOST_USER=apikey`
-   - `EMAIL_HOST_PASSWORD=SG.xxxxxx`
-   - `EMAIL_USE_TLS=1`
-   - `DEFAULT_FROM_EMAIL=no-reply@tudominio.com`
 
 Frontend
 
