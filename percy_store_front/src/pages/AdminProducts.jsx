@@ -44,7 +44,8 @@ export default function AdminProducts(){
 
   const openNew = () => setEditing({
     name:'', description:'', price:0, stock:0, image_url:'', warranty_months:0,
-    brand_id:null, category_id:null, is_active:true, color:'', size:''
+    brand_id:null, category_id:null, is_active:true, color:'', size:'',
+    is_featured:false, sale_price:null, discount_percent:null
   })
 
   const save = async () => {
@@ -61,6 +62,9 @@ export default function AdminProducts(){
         color: editing.color || '',
         size: editing.size || '',
         is_active: !!editing.is_active,
+        is_featured: !!editing.is_featured,
+        sale_price: editing.sale_price === null || editing.sale_price === '' ? null : Number(editing.sale_price||0),
+        discount_percent: editing.discount_percent === null || editing.discount_percent === '' ? null : Number(editing.discount_percent||0),
         brand_id: editing.brand_id || null,
         category_id: editing.category_id || null,
       }
@@ -107,6 +111,8 @@ export default function AdminProducts(){
                 <th className="py-2 pr-2">Marca</th>
                 <th className="py-2 pr-2">Categoría</th>
                 <th className="py-2 pr-2">Precio</th>
+                <th className="py-2 pr-2">Destacado</th>
+                <th className="py-2 pr-2">Oferta</th>
                 <th className="py-2 pr-2">Stock</th>
                 <th className="py-2 pr-2">Estado</th>
                 <th className="py-2 pr-2 text-right">Acciones</th>
@@ -124,6 +130,8 @@ export default function AdminProducts(){
                   <td className="py-2 pr-2">{p.brand?.name || '-'}</td>
                   <td className="py-2 pr-2">{p.category?.name || '-'}</td>
                   <td className="py-2 pr-2">Bs. {Number(p.price).toFixed(2)}</td>
+                  <td className="py-2 pr-2">{p.is_featured ? '✓' : '-'}</td>
+                  <td className="py-2 pr-2">{p.sale_price ? `Bs. ${Number(p.sale_price).toFixed(2)}` : (p.discount_percent ? `${Number(p.discount_percent)}%` : '-')}</td>
                   <td className="py-2 pr-2">{p.stock}</td>
                   <td className="py-2 pr-2">{p.is_active ? 'Activo' : 'Inactivo'}</td>
                   <td className="py-2 pr-2">
@@ -163,6 +171,15 @@ export default function AdminProducts(){
                 <input type="number" min="0" className="w-full rounded-lg border dark:border-neutral-700 px-3 py-2" value={editing.price} onChange={e=>setEditing({...editing, price:e.target.value})} />
               </div>
               <div>
+                <label className="block text-sm mb-1">Precio de oferta (opcional)</label>
+                <input type="number" min="0" step="0.01" className="w-full rounded-lg border dark:border-neutral-700 px-3 py-2" value={editing.sale_price ?? ''} onChange={e=>setEditing({...editing, sale_price: e.target.value===''? null : e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">% Descuento (opcional)</label>
+                <input type="number" min="0" max="99" step="0.01" className="w-full rounded-lg border dark:border-neutral-700 px-3 py-2" value={editing.discount_percent ?? ''} onChange={e=>setEditing({...editing, discount_percent: e.target.value===''? null : e.target.value})} />
+                <p className="text-xs opacity-70 mt-1">Si defines precio de oferta, se ignora el %.</p>
+              </div>
+              <div>
                 <label className="block text-sm mb-1">Stock</label>
                 <input type="number" min="0" className="w-full rounded-lg border dark:border-neutral-700 px-3 py-2" value={editing.stock} onChange={e=>setEditing({...editing, stock:e.target.value})} />
               </div>
@@ -193,6 +210,7 @@ export default function AdminProducts(){
                 </select>
               </div>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!editing.is_active} onChange={e=>setEditing({...editing, is_active: e.target.checked})} /> Activo</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!editing.is_featured} onChange={e=>setEditing({...editing, is_featured: e.target.checked})} /> Destacado</label>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button className="btn" onClick={()=>setEditing(null)} disabled={saving}>Cancelar</button>
@@ -204,4 +222,3 @@ export default function AdminProducts(){
     </section>
   )
 }
-

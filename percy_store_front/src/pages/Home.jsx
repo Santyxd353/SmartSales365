@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import ProductGrid from '../components/ProductGrid';
 import HeroBanner from '../components/HeroBanner';
 import PromoStrip from '../components/PromoStrip';
+import FeaturedCarousel from '../components/FeaturedCarousel';
 
 export default function Home(){
   const [params] = useSearchParams();
@@ -17,6 +18,7 @@ export default function Home(){
     <>
       <HeroBanner />
       <PromoStrip />
+      <FeaturedCarousel />
       <section className="container-edge py-8">
         <ProductGrid
           q={q}
@@ -30,4 +32,3 @@ export default function Home(){
     </>
   );
 }
-

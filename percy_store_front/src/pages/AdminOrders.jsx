@@ -36,7 +36,7 @@ export default function AdminOrders(){
 
   return (
     <section className="container-edge py-8">
-      <h2 className="text-2xl font-bold mb-4">Administración de órdenes</h2>
+      <h2 className="text-2xl font-bold mb-4">Administraci�n de �rdenes</h2>
       <p className="opacity-80 mb-4">Busca por número de transacción para gestionar pagos o anulaciones.</p>
       <form onSubmit={search} className="flex gap-2 mb-4">
         <input value={trx} onChange={e=>setTrx(e.target.value)} className="flex-1 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" placeholder="TRX-YYYYMMDD-..." />
@@ -80,4 +80,5 @@ export default function AdminOrders(){
     </section>
   )
 }
+
 

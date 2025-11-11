@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAdmin } from '../utils/auth'
-import { adminListUsers, adminCreateUser, adminUpdateUser, adminDeleteUser } from '../api/api'
+import { adminListUsers, adminCreateUser, adminUpdateUser, adminDeleteUser } from '../api/adminUsers'
 
 export default function AdminUsers(){
   const nav = useNavigate()

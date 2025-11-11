@@ -6,7 +6,7 @@ export default function HeroBanner(){
   return (
     <section className="container-edge mt-4">
       <div className="relative card overflow-hidden">
-        <img src={bannerImg} alt="Banner PercyStore" className="w-full h-56 sm:h-72 object-cover" />
+        <img src={bannerImg} alt="Banner SmartSales365" className="w-full h-56 sm:h-72 object-cover" />
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
@@ -27,4 +27,3 @@ export default function HeroBanner(){
     </section>
   )
 }
-

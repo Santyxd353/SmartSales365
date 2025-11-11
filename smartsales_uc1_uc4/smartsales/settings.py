@@ -29,7 +29,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
 
-    'sales',
+    'sales.apps.SalesConfig',
 ]
 
 # ============================================================
@@ -113,6 +113,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 12,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SIMPLE_JWT = {
@@ -126,6 +127,13 @@ SIMPLE_JWT = {
 # ============================================================
 CORS_ALLOW_ALL_ORIGINS = True
 APPEND_SLASH = False
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'SmartSales365 API',
+    'DESCRIPTION': 'Documentación de la API REST de SmartSales365.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
 
 # ============================================================
 # EMAIL (SMTP si hay variables, de lo contrario consola)

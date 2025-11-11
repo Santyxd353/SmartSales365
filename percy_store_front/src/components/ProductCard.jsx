@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { addToCart } from '../api/api';
 
 export default function ProductCard({ p }) {
+  const base  = Number((p && p.price) || 0)
+  const final = Number(((p && p.final_price) ?? (p && p.price)) || 0)
+  const onSale = final < base || (p && p.is_on_sale)
   const onAdd = async () => {
     try{
       await addToCart(p.id, 1);
@@ -24,7 +27,13 @@ export default function ProductCard({ p }) {
       transition={{ duration: .25 }}
       className="card overflow-hidden group hover:shadow-lg transition-all"
     >
-      <Link to={`/product/${p.id}`} className="overflow-hidden block">
+      <Link to={`/product/${p.id}`} className="overflow-hidden block relative">
+        {onSale && (
+          <span className="absolute top-2 left-2 z-10 text-[11px] px-2 py-1 rounded-full bg-red-600 text-white font-bold shadow">OFERTA</span>
+        )}
+        {p?.is_featured && (
+          <span className="absolute top-2 right-2 z-10 text-[11px] px-2 py-1 rounded-full bg-green-700 text-white font-bold shadow">★ Destacado</span>
+        )}
         <img src={p.image_url} alt={p.name} className="w-full h-40 object-cover group-hover:scale-[1.02] transition-transform" />
       </Link>
       <div className="p-3">
@@ -32,7 +41,16 @@ export default function ProductCard({ p }) {
           {p.name}
         </Link>
         <div className="mt-2 flex items-center justify-between">
-          <span className="font-bold">Bs. {Number(p.price).toFixed(2)}</span>
+          <span className="font-bold">
+            {onSale ? (
+              <>
+                <span className="text-red-600 mr-2">Bs. {final.toFixed(2)}</span>
+                <span className="line-through opacity-60 text-sm">Bs. {base.toFixed(2)}</span>
+              </>
+            ) : (
+              <>Bs. {base.toFixed(2)}</>
+            )}
+          </span>
           <span className="text-xs opacity-70">{p.warranty_months ? `${p.warranty_months}m garantía` : `Stock: ${p.stock}`}</span>
         </div>
         <button onClick={onAdd} className="btn btn-primary w-full mt-3">
@@ -43,4 +61,3 @@ export default function ProductCard({ p }) {
     </motion.div>
   );
 }
-

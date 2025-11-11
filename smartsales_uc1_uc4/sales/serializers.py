@@ -108,19 +108,37 @@ class CategorySerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     brand = BrandSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
+    final_price = serializers.SerializerMethodField()
+    is_on_sale = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'description', 'color', 'size', 'price', 'stock',
-            'image_url', 'warranty_months', 'is_active', 'brand', 'category'
+            'id', 'name', 'description', 'color', 'size', 'price', 'final_price', 'stock',
+            'image_url', 'warranty_months', 'is_active', 'is_on_sale', 'is_featured',
+            'sale_price', 'discount_percent', 'brand', 'category'
         ]
+
+    def get_final_price(self, obj):
+        return obj.get_final_price()
+
+    def get_is_on_sale(self, obj):
+        return obj.is_on_sale
 
 
 class ProductListSerializer(serializers.ModelSerializer):
+    final_price = serializers.SerializerMethodField()
+    is_on_sale = serializers.SerializerMethodField()
+
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'stock', 'image_url', 'warranty_months']
+        fields = ['id', 'name', 'price', 'final_price', 'is_on_sale', 'is_featured', 'sale_price', 'discount_percent', 'stock', 'image_url', 'warranty_months']
+
+    def get_final_price(self, obj):
+        return obj.get_final_price()
+
+    def get_is_on_sale(self, obj):
+        return obj.is_on_sale
 
 
 class ProductAdminWriteSerializer(serializers.ModelSerializer):
@@ -133,9 +151,29 @@ class ProductAdminWriteSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'description', 'color', 'size', 'price', 'stock',
-            'image_url', 'warranty_months', 'is_active',
+            'image_url', 'warranty_months', 'is_active', 'is_featured', 'sale_price', 'discount_percent',
             'brand', 'category', 'brand_id', 'category_id'
         ]
+
+    def validate(self, attrs):
+        sp = attrs.get('sale_price', None)
+        dp = attrs.get('discount_percent', None)
+        if sp is not None and dp is not None:
+            raise serializers.ValidationError('Usa solo precio de oferta o % de descuento.')
+        if sp is not None:
+            try:
+                if float(sp) < 0:
+                    raise serializers.ValidationError('El precio de oferta no puede ser negativo.')
+            except Exception:
+                raise serializers.ValidationError('Precio de oferta inválido.')
+        if dp is not None:
+            try:
+                f = float(dp)
+                if f < 0 or f >= 100:
+                    raise serializers.ValidationError('El % de descuento debe estar entre 0 y 100.')
+            except Exception:
+                raise serializers.ValidationError('Porcentaje de descuento inválido.')
+        return attrs
 
     def create(self, validated_data):
         brand_id = validated_data.pop('brand_id', None)
@@ -174,16 +212,55 @@ class AdminUserSerializer(serializers.ModelSerializer):
         fn = (obj.first_name + ' ' + obj.last_name).strip()
         return fn or obj.username
 
+    def validate(self, attrs):
+        username = (attrs.get('username') or '').strip()
+        email = (attrs.get('email') or '').strip()
+        errors = {}
+        if not username and not email:
+            errors['username'] = ['Ingrese un usuario o correo.']
+        # email válido y único si fue provisto
+        if email:
+            try:
+                serializers.EmailField().run_validation(email)
+            except serializers.ValidationError:
+                errors['email'] = ['Ingresa un correo válido.']
+            else:
+                if User.objects.filter(email__iexact=email).exists():
+                    errors['email'] = ['Este correo ya está en uso.']
+        # username único si fue provisto
+        if username and User.objects.filter(username__iexact=username).exists():
+            errors['username'] = ['Ya existe un usuario con este nombre.']
+        # validar password si viene
+        pwd = (attrs.get('password') or '').strip()
+        if pwd:
+            try:
+                validate_password(pwd)
+            except Exception as e:
+                errors['password'] = [str(e)] if str(e) else ['Contraseña inválida.']
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
+
     def create(self, validated_data):
         profile_data = validated_data.pop('profile', {}) if 'profile' in validated_data else {}
-        is_admin = profile_data.get('is_admin', False)
+        is_admin = bool(profile_data.get('is_admin', False))
         password = validated_data.pop('password', None)
+        username = (validated_data.get('username') or '').strip()
+        email = (validated_data.get('email') or '').strip()
+        if not username:
+            if email:
+                validated_data['username'] = email
+            else:
+                raise serializers.ValidationError({'username': ['Ingrese un usuario o correo.']})
+        # crear usuario con flags permitidos
+        is_staff = bool(validated_data.pop('is_staff', False))
         user = User.objects.create(**validated_data)
+        user.is_staff = is_staff
         if password:
             user.set_password(password)
-            user.save()
+        user.save()
         # profile exists via signal
-        user.profile.is_admin = bool(is_admin)
+        user.profile.is_admin = is_admin
         user.profile.save(update_fields=['is_admin'])
         return user
 
@@ -191,6 +268,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
         profile_data = validated_data.pop('profile', {}) if 'profile' in validated_data else {}
         is_admin = profile_data.get('is_admin', None)
         password = validated_data.pop('password', None)
+        # no se permite cambiar username aquí
+        if 'username' in validated_data:
+            validated_data.pop('username')
+        # aplicar cambios básicos y flags
         for k, v in validated_data.items():
             setattr(instance, k, v)
         if password:

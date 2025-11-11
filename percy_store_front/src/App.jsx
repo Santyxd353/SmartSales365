@@ -1,17 +1,22 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import CatalogChatbot from "./components/CatalogChatbot";
 import Home from "./pages/Home";
 import Cart from "./pages/Cart";
 import ProductDetail from "./pages/ProductDetail";
 import Login from "./pages/Login";
 import Orders from "./pages/Orders";
 import AdminOrders from "./pages/AdminOrders";
+import AdminPayments from "./pages/AdminPayments";
 import AdminProducts from "./pages/AdminProducts";
 import AdminUsers from "./pages/AdminUsers";
 import AdminReports from "./pages/AdminReports";
+import AdminStats from "./pages/AdminStats";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import Checkout from "./pages/Checkout";
+import AdminSell from "./pages/AdminSell";
 
 export default function App(){
   return (
@@ -20,6 +25,7 @@ export default function App(){
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/checkout" element={<Checkout />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -27,17 +33,20 @@ export default function App(){
         <Route path="/orders" element={<Orders />} />
         <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="/admin/products" element={<AdminProducts />} />
+        <Route path="/admin/payments" element={<AdminPayments />} />
+        <Route path="/admin/sell" element={<AdminSell />} />
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/reports" element={<AdminReports />} />
+        <Route path="/admin/stats" element={<AdminStats />} />
         <Route path="*" element={<div className="container-edge py-12">Página en construcción.</div>} />
       </Routes>
+      <CatalogChatbot />
       <footer className="mt-12 border-t border-neutral-200 dark:border-neutral-800">
         <div className="container-edge py-8 text-sm flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="opacity-80">© {new Date().getFullYear()} PercyStore</p>
+          <p className="opacity-80">© {new Date().getFullYear()} SmartSales365</p>
           <p className="font-semibold text-green-700">A Santa Cruz no la para nadie</p>
         </div>
       </footer>
     </div>
   );
 }
-

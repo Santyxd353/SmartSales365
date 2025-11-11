@@ -82,9 +82,9 @@ export default function Navbar(){
             <span className="block w-6 h-0.5 bg-green-700"></span>
           </button>
 
-          <Link to="/" className="text-2xl font-extrabold tracking-tight leading-none">
-            <span className="text-green-700">Percy</span>
-            <span className="text-red-600">Store</span>
+          <Link to="/" className="text-2xl font-extrabold tracking-tight leading-none inline-flex items-center gap-1">
+            <motion.span whileHover={{ y:-1, scale:1.02 }} className="text-green-700">Smart</motion.span>
+            <motion.span whileHover={{ y:-1, scale:1.02 }} className="text-red-600">Sales365</motion.span>
           </Link>
 
           <span className="hidden sm:inline text-[11px] sm:text-xs ml-2 px-2 py-1 rounded-full bg-green-700/10 text-green-700 font-semibold">
@@ -245,21 +245,36 @@ export default function Navbar(){
         {open && (
           <motion.nav initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} className="md:hidden overflow-hidden border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
             <div className="px-4 py-3 space-y-2">
-              <Link to="/" className="block py-2" onClick={()=>setOpen(false)}>Inicio</Link>
-              {auth && !admin && <Link to="/orders" className="block py-2" onClick={()=>setOpen(false)}>Mis pedidos</Link>}
-              {auth && !admin && <Link to="/profile" className="block py-2" onClick={()=>setOpen(false)}>Mi cuenta</Link>}
-              {admin && <Link to="/admin/orders" className="block py-2" onClick={()=>setOpen(false)}>Admin</Link>}
-              {admin && <Link to="/admin/products" className="block py-2" onClick={()=>setOpen(false)}>Admin Productos</Link>}
-              {admin && <Link to="/admin/users" className="block py-2" onClick={()=>setOpen(false)}>Admin Usuarios</Link>}
-              {admin && <Link to="/admin/reports" className="block py-2" onClick={()=>setOpen(false)}>Admin Reportes</Link>}
-              {!admin && <Link to="/cart" className="block py-2" onClick={()=>setOpen(false)}>Carrito</Link>}
+              <Link to="/" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Inicio</Link>
+              {auth && !admin && <Link to="/orders" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Mis pedidos</Link>}
+              {auth && !admin && <Link to="/profile" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Mi cuenta</Link>}
+              {admin && <Link to="/admin/orders" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Admin</Link>}
+              {admin && <Link to="/admin/products" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Admin Productos</Link>}
+              {admin && <Link to="/admin/payments" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Pagos</Link>}
+              {admin && <Link to="/admin/sell" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Venta</Link>}
+              {admin && <Link to="/admin/stats" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Estadísticas</Link>}
+              {admin && <Link to="/admin/users" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Admin Usuarios</Link>}
+              {admin && <Link to="/admin/reports" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Admin Reportes</Link>}
+              {!admin && <Link to="/cart" className="block py-2 transition-transform hover:translate-x-0.5" onClick={()=>setOpen(false)}>Carrito</Link>}
               {!auth && <Link to="/login" className="block py-2" onClick={()=>setOpen(false)}>Iniciar sesión</Link>}
               {auth && <button onClick={()=>{ if(confirm('¿Cerrar sesión?')) { logout(); setAuth(false); setAdmin(false); setOpen(false); nav('/') } }} className="block py-2">Cerrar sesión</button>}
             </div>
           </motion.nav>
         )}
       </AnimatePresence>
+      {admin && (
+        <div className="hidden md:block border-t border-green-700/20 bg-white/80 dark:bg-neutral-950/70">
+          <div className="container-edge py-2 text-sm flex flex-wrap items-center gap-4">
+            <Link to="/admin/orders" className="hover:underline">Admin</Link>
+            <Link to="/admin/products" className="hover:underline">Productos</Link>
+            <Link to="/admin/users" className="hover:underline">Usuarios</Link>
+            <Link to="/admin/reports" className="hover:underline">Reportes</Link>
+            <Link to="/admin/payments" className="hover:underline">Pagos</Link>
+            <Link to="/admin/sell" className="hover:underline">Venta</Link>
+            <Link to="/admin/stats" className="font-semibold text-green-700 hover:underline">Estadísticas</Link>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
-

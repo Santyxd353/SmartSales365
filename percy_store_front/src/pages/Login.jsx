@@ -28,7 +28,7 @@ export default function Login(){
   return (
     <section className="container-edge py-10">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="max-w-md mx-auto card p-6">
-        <h1 className="text-2xl font-bold mb-2">Bienvenido a PercyStore</h1>
+        <h1 className="text-2xl font-bold mb-2">Bienvenido a SmartSales365</h1>
         <p className="opacity-80 mb-6">Inicia sesión con tu correo o teléfono. Verde esperanza, fuerza cruceña.</p>
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
@@ -50,4 +50,3 @@ export default function Login(){
     </section>
   )
 }
-

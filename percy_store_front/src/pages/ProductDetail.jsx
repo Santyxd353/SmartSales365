@@ -30,7 +30,23 @@ export default function ProductDetail(){
       <div>
         <h1 className="text-3xl font-bold mb-2">{p.name}</h1>
         <p className="opacity-80 mb-4">{p.description || 'Sin descripción.'}</p>
-        <div className="text-2xl font-extrabold mb-4">Bs. {Number(p.price).toFixed(2)}</div>
+        {(() => {
+          const base = Number(p.price||0)
+          const final = Number((p.final_price ?? p.price) || 0)
+          const onSale = final < base || p.is_on_sale
+          return (
+            <div className="text-2xl font-extrabold mb-4">
+              {onSale ? (
+                <>
+                  <span className="text-red-600 mr-3">Bs. {final.toFixed(2)}</span>
+                  <span className="line-through opacity-60 text-lg">Bs. {base.toFixed(2)}</span>
+                </>
+              ) : (
+                <>Bs. {base.toFixed(2)}</>
+              )}
+            </div>
+          )
+        })()}
         <div className="flex items-center gap-3 mb-6">
           <input
             type="number" min="1" max={p.stock}
@@ -61,4 +77,3 @@ export default function ProductDetail(){
     </section>
   );
 }
-

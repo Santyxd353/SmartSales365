@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (
+from .views import (order_receipt_pdf2 as order_receipt_pdf, 
     RegisterView, LoginView, MeView,
     AddressListCreateView, AddressDetailView,
     ProductListView, ProductDetailView, CartView, CartAddItemView, CartItemUpdateView, CheckoutView,
@@ -12,6 +12,9 @@ from .views import (
     ChangeEmailView, ChangePhoneView,
     AdminSalesReportList, AdminSalesReportCreate, AdminSalesReportDownload, AdminSalesReportExportCSV,
     AdminAuditReportList, AdminAuditReportCreate, AdminAuditReportDownload,
+    PaymentStartQRView, StripeWebhookView, MercadoPagoWebhookView, CucuWebhookView, BNBWebhookView, AdminPendingPaymentsList, AdminCreateLocalSale,
+    AdminMLTrain, AdminMLPredict, AdminHistoricalSales, AdminPromptReportView, AdminAIAdvisorView, CatalogAIAdvisorView, AdminOrderCustomerInfoView,
+    OrderDetailOwnerView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -43,7 +46,7 @@ urlpatterns = [
     path('admin/reports/sales/generate', AdminSalesReportCreate.as_view(), name='admin-sales-generate'),
     path('admin/reports/sales/<int:pk>/download', AdminSalesReportDownload.as_view(), name='admin-sales-download'),
     path('admin/reports/sales/export-csv', AdminSalesReportExportCSV.as_view(), name='admin-sales-export-csv'),
-    # Reportes auditoría
+    # Reportes auditorÃƒÂ­a
     path('admin/reports/audit', AdminAuditReportList.as_view(), name='admin-audit-reports'),
     path('admin/reports/audit/generate', AdminAuditReportCreate.as_view(), name='admin-audit-generate'),
     path('admin/reports/audit/<int:pk>/download', AdminAuditReportDownload.as_view(), name='admin-audit-download'),
@@ -55,5 +58,24 @@ urlpatterns = [
     path('orders/by-transaction/<str:transaction_number>/', OrderByTransaction.as_view(), name='orders-by-trx'),
     path('orders/<int:pk>/mark-paid/', OrderMarkPaid.as_view(), name='orders-mark-paid'),
     path('orders/<int:pk>/void/', OrderVoid.as_view(), name='orders-void'),
-    path('orders/<int:pk>/receipt.pdf', OrderReceiptPDF.as_view(), name='orders-receipt'),
+    path('orders/<int:pk>/receipt.pdf', order_receipt_pdf, name='orders-receipt'),
+    # Payments
+    path('payments/qr/start', PaymentStartQRView.as_view(), name='payments-qr-start'),
+    path('payments/stripe/webhook', StripeWebhookView.as_view(), name='payments-stripe-webhook'),
+    path('payments/mp/webhook', MercadoPagoWebhookView.as_view(), name='payments-mp-webhook'),
+    path('payments/cucu/webhook', CucuWebhookView.as_view(), name='payments-cucu-webhook'),
+    path('payments/bnb/webhook', BNBWebhookView.as_view(), name='payments-bnb-webhook'),
+    # Owner order detail (polling)
+    path('orders/<int:pk>', OrderDetailOwnerView.as_view(), name='orders-detail-owner'),
+    # Admin payments and local sales
+    path('admin/payments/pending', AdminPendingPaymentsList.as_view(), name='admin-payments-pending'),
+    path('admin/sales/create-local', AdminCreateLocalSale.as_view(), name='admin-create-local-sale'),
+    path('admin/orders/<int:pk>/customer-info', AdminOrderCustomerInfoView.as_view(), name='admin-orders-customer-info'),
+    # Admin stats & ML
+    path('admin/ml/train', AdminMLTrain.as_view(), name='admin-ml-train'),
+    path('admin/ml/predict', AdminMLPredict.as_view(), name='admin-ml-predict'),
+    path('admin/ml/historical', AdminHistoricalSales.as_view(), name='admin-ml-historical'),
+    path('admin/reports/prompt', AdminPromptReportView.as_view(), name='admin-reports-prompt'),
+    path('admin/ai/advisor', AdminAIAdvisorView.as_view(), name='admin-ai-advisor'),
+    path('ai/catalog', CatalogAIAdvisorView.as_view(), name='catalog-ai-advisor'),
 ]

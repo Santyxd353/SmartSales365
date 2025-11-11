@@ -1,4 +1,4 @@
-﻿from rest_framework import generics, permissions, exceptions
+from rest_framework import generics, permissions, exceptions, renderers
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -13,12 +13,14 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils.text import get_valid_filename
 from django.shortcuts import get_object_or_404
-from django.utils.timezone import now
-from django.http import FileResponse
+from django.utils.timezone import now, localtime
+from django.http import FileResponse, JsonResponse
 from io import BytesIO
 from io import StringIO
 import csv
 import os
+import json
+from decimal import Decimal
 
 from .serializers import (
     RegisterSerializer, UserProfileSerializer, UserProfileUpdateSerializer,
@@ -28,8 +30,16 @@ from .serializers import (
     CheckoutSerializer, OrderSerializer,
     BrandSerializer, CategorySerializer, ProductAdminWriteSerializer,
 )
-from .models import UserProfile, UserAddress, Product, Cart, CartItem, Order, Brand, Category, SalesReport, AuditReport, AdminAuditLog
-from .services import adjust_stock_on_paid, revert_stock_on_void, log_admin_action
+from .models import (
+    UserProfile, UserAddress, Product, Cart, CartItem, Order, OrderItem,
+    PaymentTransaction, Brand, Category, SalesReport, AuditReport, AdminAuditLog
+)
+from .services import (
+    adjust_stock_on_paid, revert_stock_on_void, log_admin_action,
+    parse_prompt_to_spec, build_sales_queryset, aggregate_sales,
+    export_to_pdf, export_to_excel, train_rf, predict_rf,
+    answer_product_question, fallback_aggregate_rows,
+)
 
 
 # AUTH
@@ -220,16 +230,17 @@ class ProductListView(generics.ListAPIView):
     def get_queryset(self):
         qs = Product.objects.filter(is_active=True)
 
-        # ParÃ¡metros
-        q           = self.request.query_params.get('q')
-        brand       = self.request.query_params.get('brand')
-        brand_id    = self.request.query_params.get('brand_id')
-        category    = self.request.query_params.get('category')
+        q = self.request.query_params.get('q')
+        brand = self.request.query_params.get('brand')
+        brand_id = self.request.query_params.get('brand_id')
+        category = self.request.query_params.get('category')
         category_id = self.request.query_params.get('category_id')
-        min_price   = self.request.query_params.get('min')
-        max_price   = self.request.query_params.get('max')
-        in_stock    = self.request.query_params.get('in_stock')
-        sort        = self.request.query_params.get('sort')  # price_asc | price_desc | newest
+        min_price = self.request.query_params.get('min')
+        max_price = self.request.query_params.get('max')
+        in_stock = self.request.query_params.get('in_stock')
+        sort = self.request.query_params.get('sort')
+        featured = self.request.query_params.get('featured')
+        on_sale = self.request.query_params.get('on_sale')
 
         if q:
             qs = qs.filter(
@@ -260,8 +271,13 @@ class ProductListView(generics.ListAPIView):
             except ValueError:
                 pass
 
-        if in_stock and str(in_stock).lower() in ('1','true','yes','si','sÃ­'):
+        truthy = ('1','true','yes','si')
+        if in_stock and str(in_stock).lower() in truthy:
             qs = qs.filter(stock__gt=0)
+        if featured and str(featured).lower() in truthy:
+            qs = qs.filter(is_featured=True)
+        if on_sale and str(on_sale).lower() in truthy:
+            qs = qs.filter(Q(sale_price__isnull=False) | Q(discount_percent__gt=0))
 
         if sort == 'price_asc':
             qs = qs.order_by('price', 'name')
@@ -273,7 +289,6 @@ class ProductListView(generics.ListAPIView):
             qs = qs.order_by('name')
 
         return qs
-
 
 class ProductDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
@@ -570,8 +585,8 @@ class OrderReceiptPDF(APIView):
         for it in order.items.all():
             line = f"{it.qty}x {it.name_snapshot}  @ {it.unit_price}  = {it.line_total}"
             c.drawString(22*mm, y, line); y -= 6*mm
-            if it.warranty_expires_at:
-                c.drawString(24*mm, y, f"GarantÃ­a hasta: {it.warranty_expires_at}"); y -= 5*mm
+        if it.warranty_expires_at:
+            c.drawString(24*mm, y, f"Garantia hasta: {it.warranty_expires_at}"); y -= 5*mm
             if y < 30*mm:
                 c.showPage(); y = H - 20*mm
 
@@ -1013,3 +1028,536 @@ class AdminSalesReportExportCSV(APIView):
         resp['Content-Disposition'] = f'attachment; filename="{filename}"'
         return resp
 
+
+# Payments & Local Sales
+class PaymentStartQRView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        order_id = request.data.get('order_id')
+        if not order_id:
+            return Response({'detail': 'order_id requerido'}, status=400)
+        order = get_object_or_404(Order, pk=order_id, user=request.user)
+        if order.status != 'PENDING':
+            return Response({'detail': 'La orden no est� pendiente'}, status=400)
+
+        provider = (os.environ.get('PAYMENT_PROVIDER') or '').lower()
+        bnb_ready = bool(os.environ.get('BNB_CREATE_QR_URL') or getattr(settings, 'BNB_CREATE_QR_URL', None))
+        cucu_ready = bool(os.environ.get('CUCU_API_KEY') and (os.environ.get('CUCU_CREATE_QR_URL') or os.environ.get('CUCU_BASE_URL')))
+
+        base = request.build_absolute_uri('/')[:-1]
+        import urllib.request
+        result = None
+
+        if provider == 'bnb' or (bnb_ready and provider != 'cucu'):
+            create_url = os.environ.get('BNB_CREATE_QR_URL') or getattr(settings, 'BNB_CREATE_QR_URL', '')
+            token_url = os.environ.get('BNB_TOKEN_URL') or getattr(settings, 'BNB_TOKEN_URL', '')
+            client_id = os.environ.get('BNB_CLIENT_ID') or getattr(settings, 'BNB_CLIENT_ID', '')
+            client_secret = os.environ.get('BNB_CLIENT_SECRET') or getattr(settings, 'BNB_CLIENT_SECRET', '')
+            api_key = os.environ.get('BNB_API_KEY') or getattr(settings, 'BNB_API_KEY', '')
+            merchant_id = os.environ.get('BNB_MERCHANT_ID') or getattr(settings, 'BNB_MERCHANT_ID', '')
+            account_no = os.environ.get('BNB_ACCOUNT_NUMBER') or getattr(settings, 'BNB_ACCOUNT_NUMBER', '')
+            webhook = f"{base}/api/payments/bnb/webhook"
+            if not create_url:
+                return Response({'detail': 'BNB no configurado (BNB_CREATE_QR_URL requerido)'}, status=500)
+            headers = {'Content-Type': 'application/json'}
+            if token_url and client_id and client_secret:
+                try:
+                    data = urllib.parse.urlencode({'grant_type': 'client_credentials', 'client_id': client_id, 'client_secret': client_secret}).encode('utf-8')
+                    treq = urllib.request.Request(token_url, data=data, headers={'Content-Type': 'application/x-www-form-urlencoded'})
+                    with urllib.request.urlopen(treq, timeout=20) as tr:
+                        tdata = json.loads(tr.read().decode('utf-8'))
+                        headers['Authorization'] = f"Bearer {tdata.get('access_token')}"
+                except Exception as exc:
+                    return Response({'detail': f'Error token BNB: {exc}'}, status=502)
+            elif api_key:
+                headers['Authorization'] = f"Bearer {api_key}"
+            payload = {
+                'external_reference': order.transaction_number,
+                'amount': float(order.grand_total),
+                'description': f"Orden {order.transaction_number}",
+                'notification_url': webhook,
+                'merchant_id': merchant_id,
+                'account_number': account_no,
+                'currency': 'BOB',
+            }
+            try:
+                req = urllib.request.Request(create_url, data=json.dumps(payload).encode('utf-8'), headers=headers)
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    data = json.loads(resp.read().decode('utf-8'))
+                qr_data = data.get('qr_data') or data.get('emv') or data.get('qrString') or data.get('qr') or ''
+                external_id = data.get('id') or data.get('order_id') or order.transaction_number
+                PaymentTransaction.objects.create(order=order, provider='bnb', amount=order.grand_total, currency='BOB', status='PENDING', external_id=external_id, metadata=json.dumps(data))
+                result = {'provider': 'bnb', 'qr_data': qr_data}
+            except Exception as exc:
+                return Response({'detail': f'Error BNB: {exc}'}, status=502)
+
+        if result is None and cucu_ready:
+            cucu_key = os.environ.get('CUCU_API_KEY')
+            cucu_base = os.environ.get('CUCU_BASE_URL', '')
+            cucu_create = os.environ.get('CUCU_CREATE_QR_URL') or (cucu_base.rstrip('/') + '/payments/qr')
+            notif = f"{base}/api/payments/cucu/webhook"
+            body = {
+                'external_reference': order.transaction_number,
+                'amount': float(order.grand_total),
+                'description': f"Orden {order.transaction_number}",
+                'notification_url': notif,
+            }
+            try:
+                req = urllib.request.Request(cucu_create, data=json.dumps(body).encode('utf-8'), headers={'Authorization': f'Bearer {cucu_key}', 'Content-Type': 'application/json'})
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    data = json.loads(resp.read().decode('utf-8'))
+                qr_data = data.get('qr_data') or data.get('qr_url') or data.get('qrString') or data.get('link') or ''
+                external_id = data.get('id') or data.get('payment_id') or order.transaction_number
+                PaymentTransaction.objects.create(order=order, provider='cucu', amount=order.grand_total, currency='BOB', status='PENDING', external_id=external_id, metadata=json.dumps(data))
+                result = {'provider': 'cucu', 'qr_data': qr_data}
+            except Exception as exc:
+                return Response({'detail': f'Error CUCU: {exc}'}, status=502)
+
+        if result is None:
+            payload = {
+                'transaction': order.transaction_number,
+                'amount': float(order.grand_total),
+                'currency': 'BOB',
+                'issued_at': now().isoformat(),
+                'customer': request.user.get_full_name() or request.user.email or request.user.username,
+            }
+            PaymentTransaction.objects.create(order=order, provider='local', amount=order.grand_total, currency='BOB', status='PENDING', external_id=order.transaction_number, metadata=json.dumps(payload, ensure_ascii=False))
+            result = {'provider': 'local', 'qr_data': json.dumps(payload, ensure_ascii=False), 'instructions': 'QR generado localmente para pruebas internas.'}
+        return Response(result)
+
+
+class StripeWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+    renderer_classes = [renderers.JSONRenderer]
+
+    def post(self, request):
+        try:
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+        except Exception:
+            payload = {}
+        ext = payload.get('external_reference') or payload.get('metadata', {}).get('order_id')
+        status = (payload.get('status') or '').lower()
+        success = status in ('paid', 'approved', 'succeeded', 'success')
+        if ext and success:
+            order = Order.objects.filter(transaction_number=ext).first()
+            if order and order.status == 'PENDING':
+                order.status = 'PAID'
+                order.paid_at = now()
+                order.save(update_fields=['status', 'paid_at'])
+                try:
+                    adjust_stock_on_paid(order)
+                except Exception:
+                    pass
+        return Response({'ok': True})
+
+
+class MercadoPagoWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+    renderer_classes = [renderers.JSONRenderer]
+
+    def post(self, request):
+        try:
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+        except Exception:
+            payload = {}
+        ext = payload.get('external_reference') or payload.get('order_id')
+        status = (payload.get('status') or payload.get('type') or '').lower()
+        success = status in ('paid', 'approved', 'success')
+        if ext and success:
+            order = Order.objects.filter(transaction_number=ext).first()
+            if order and order.status == 'PENDING':
+                order.status = 'PAID'
+                order.paid_at = now()
+                order.save(update_fields=['status', 'paid_at'])
+                try:
+                    adjust_stock_on_paid(order)
+                except Exception:
+                    pass
+        return Response({'ok': True})
+
+
+class CucuWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+    renderer_classes = [renderers.JSONRenderer]
+
+    def post(self, request):
+        try:
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+        except Exception:
+            payload = {}
+        ext = payload.get('external_reference') or payload.get('order_id')
+        status = (payload.get('status') or '').lower()
+        paid_flag = bool(payload.get('paid') or payload.get('success') or (status in ('paid', 'approved', 'success')))
+        if ext and paid_flag:
+            order = Order.objects.filter(transaction_number=ext).first()
+            if order and order.status == 'PENDING':
+                order.status = 'PAID'
+                order.paid_at = now()
+                order.save(update_fields=['status', 'paid_at'])
+                try:
+                    adjust_stock_on_paid(order)
+                except Exception:
+                    pass
+        return Response({'ok': True})
+
+
+class BNBWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        try:
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+        except Exception:
+            payload = {}
+        ext = payload.get('external_reference') or payload.get('externalRef') or payload.get('order_code') or payload.get('order_id')
+        state = (payload.get('state') or payload.get('status') or '').lower()
+        paid = state in ('paid', 'approved', 'success', 'completed') or bool(payload.get('paid'))
+        if ext and paid:
+            order = Order.objects.filter(transaction_number=ext).first()
+            if order and order.status == 'PENDING':
+                order.status = 'PAID'
+                order.paid_at = now()
+                order.save(update_fields=['status', 'paid_at'])
+                try:
+                    adjust_stock_on_paid(order)
+                except Exception:
+                    pass
+        return Response({'ok': True})
+
+
+class AdminPendingPaymentsList(generics.ListAPIView):
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = OrderSerializer
+
+    def get_queryset(self):
+        return Order.objects.filter(status='PENDING').order_by('-created_at')
+
+
+class AdminCreateLocalSale(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        items = request.data.get('items') or []
+        method = (request.data.get('payment_method') or 'CASH').upper()
+        if not items or not isinstance(items, list):
+            return Response({'detail': 'items requerido (lista de {product_id, qty})'}, status=400)
+        subtotal = Decimal('0')
+        order_items = []
+        for it in items:
+            try:
+                pid = int(it.get('product_id'))
+                qty = int(it.get('qty') or 1)
+            except Exception:
+                return Response({'detail': 'items invalidos'}, status=400)
+            if qty <= 0:
+                return Response({'detail': 'qty > 0'}, status=400)
+            prod = get_object_or_404(Product, pk=pid, is_active=True)
+            price = Decimal(str(prod.final_price))
+            subtotal += price * qty
+            order_items.append((prod, qty, price))
+        discount_total = Decimal('0')
+        tax_total = Decimal('0')
+        shipping_total = Decimal('0')
+        grand_total = subtotal - discount_total + tax_total + shipping_total
+        user = request.user
+        order = Order.objects.create(
+            user=user,
+            status='PAID' if method == 'CASH' else 'PENDING',
+            transaction_number=f"TRX-{now().strftime('%Y%m%d')}-{user.id}-{int(now().timestamp())}",
+            transaction_status='VALID',
+            subtotal=subtotal, discount_total=discount_total, tax_total=tax_total,
+            shipping_total=shipping_total, grand_total=grand_total, payment_method=method,
+        )
+        from datetime import date, timedelta
+        from dateutil.relativedelta import relativedelta
+        if method != 'CASH':
+            order.payment_due_at = now() + timedelta(days=7)
+            order.save(update_fields=['payment_due_at'])
+        else:
+            order.paid_at = now()
+            order.save(update_fields=['paid_at'])
+        today = date.today()
+        for prod, qty, price in order_items:
+            wmonths = prod.warranty_months or 0
+            wexp = (today + relativedelta(months=wmonths)) if wmonths > 0 else None
+            OrderItem.objects.create(
+                order=order, product=prod,
+                name_snapshot=prod.name,
+                color_snapshot=prod.color, size_snapshot=prod.size,
+                warranty_months_snapshot=wmonths, warranty_expires_at=wexp,
+                qty=qty, unit_price=price, tax_rate=0, discount=0, line_total=price * qty
+            )
+        if method == 'CASH':
+            try:
+                adjust_stock_on_paid(order)
+            except Exception:
+                pass
+        return Response({'order_id': order.id, 'transaction_number': order.transaction_number})
+
+
+class AdminOrderCustomerInfoView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+        fields = ['customer_name', 'customer_document', 'customer_phone', 'customer_warranty_note']
+        updated = []
+        for field in fields:
+            if field in request.data:
+                raw_value = request.data.get(field)
+                if isinstance(raw_value, str):
+                    cleaned = raw_value.strip()
+                elif raw_value is None:
+                    cleaned = ''
+                else:
+                    cleaned = str(raw_value).strip()
+                setattr(order, field, cleaned or None)
+                updated.append(field)
+        if updated:
+            order.save(update_fields=updated)
+            try:
+                log_admin_action(request.user, 'UPDATE_ORDER_CUSTOMER', 'Order', order.pk, None, order)
+            except Exception:
+                pass
+        return Response(OrderSerializer(order).data)
+
+
+class OrderDetailOwnerView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderSerializer
+    queryset = Order.objects.all()
+
+    def get(self, request, pk):
+        obj = get_object_or_404(Order, pk=pk)
+        if (obj.user_id != request.user.id) and (not request.user.is_staff):
+            return Response({'detail': 'No autorizado'}, status=403)
+        return Response(OrderSerializer(obj).data)
+
+
+# --------- ADMIN: ML & REPORTES (Prompt) ---------
+class AdminMLTrain(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        scope = (request.data.get('scope') or 'total').lower()
+        try:
+            info = train_rf(scope=scope)
+            return Response({'ok': True, 'info': info})
+        except Exception as exc:
+            return Response({'ok': False, 'detail': str(exc)}, status=400)
+
+
+class AdminMLPredict(generics.GenericAPIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        scope = (request.query_params.get('scope') or 'total').lower()
+        months = int(request.query_params.get('months') or 6)
+        category_id = request.query_params.get('category_id')
+        try:
+            rows = predict_rf(months=months, scope=scope, category_id=category_id)
+            return Response({'results': rows})
+        except Exception as exc:
+            return Response({'detail': str(exc)}, status=400)
+
+
+class AdminHistoricalSales(generics.GenericAPIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        group = (request.query_params.get('group') or 'monthly').lower()
+        start = request.query_params.get('start')
+        end = request.query_params.get('end')
+        category_id = request.query_params.get('category_id')
+        s = e = None
+        from datetime import datetime as _dt
+        try:
+            if start:
+                s = _dt.strptime(start, '%d/%m/%Y').date()
+            if end:
+                e = _dt.strptime(end, '%d/%m/%Y').date()
+        except Exception:
+            s = e = None
+        qs = build_sales_queryset(start=s, end=e)
+        if category_id:
+            try:
+                qs = qs.filter(product__category_id=int(category_id))
+            except Exception:
+                pass
+        rows = aggregate_sales(qs, group_by=group)
+        if not rows:
+            rows = fallback_aggregate_rows(group, category_id=category_id)
+        for row in rows:
+            if 'period' in row and hasattr(row['period'], 'strftime'):
+                row['period'] = row['period'].strftime('%Y-%m-%d')
+        return Response({'results': rows})
+
+
+class AdminPromptReportView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        prompt = request.data.get('prompt') or ''
+        if not prompt.strip():
+            return Response({'detail': 'prompt requerido'}, status=400)
+        spec = parse_prompt_to_spec(prompt)
+        force_format = request.data.get('format') or request.data.get('force_format')
+        if force_format and force_format.lower() in ('pdf', 'excel', 'screen'):
+            spec['format'] = force_format.lower()
+        qs = build_sales_queryset(start=spec.get('start'), end=spec.get('end'), category_ids=spec.get('category_ids'), keyword_key=spec.get('keyword_key'))
+        rows = aggregate_sales(qs, group_by=spec.get('group_by'))
+        if not rows and not spec.get('explicit_range'):
+            cat_id = (spec.get('category_ids') or [None])[0]
+            rows = fallback_aggregate_rows(spec.get('group_by'), category_id=cat_id)
+        fmt = spec.get('format')
+        if fmt == 'pdf':
+            pdf_bytes = export_to_pdf(rows, title='Reporte de Ventas')
+            buf = BytesIO(pdf_bytes)
+            return FileResponse(buf, as_attachment=True, filename='reporte.pdf', content_type='application/pdf')
+        if fmt == 'excel':
+            x_bytes = export_to_excel(rows, title='Reporte de Ventas')
+            buf = BytesIO(x_bytes)
+            return FileResponse(buf, as_attachment=True, filename='reporte.xlsx', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        return Response({'results': rows})
+
+
+class AdminAIAdvisorView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        prompt = request.data.get('prompt') or ''
+        if not prompt.strip():
+            return Response({'detail': 'prompt requerido'}, status=400)
+        try:
+            data = answer_product_question(prompt)
+            return Response(data)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=400)
+        except Exception:
+            return Response({'detail': 'No se pudo generar la recomendaci�n'}, status=500)
+
+
+class CatalogAIAdvisorView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        prompt = request.data.get('prompt') or ''
+        if not prompt.strip():
+            return Response({'detail': 'prompt requerido'}, status=400)
+        try:
+            data = answer_product_question(prompt)
+            return Response(data)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=400)
+        except Exception:
+            return Response({'detail': 'No se pudo generar la recomendaci�n'}, status=500)
+
+
+def order_receipt_pdf2(request, pk):
+    auth = request.META.get('HTTP_AUTHORIZATION', '')
+    user = getattr(request, 'user', None)
+    if (not user) or (not getattr(user, 'is_authenticated', False)):
+        if auth.lower().startswith('bearer '):
+            try:
+                from rest_framework_simplejwt.authentication import JWTAuthentication
+                jwt_auth = JWTAuthentication()
+                token = auth.split()[1]
+                validated = jwt_auth.get_validated_token(token)
+                user = jwt_auth.get_user(validated)
+                request.user = user
+            except Exception:
+                return JsonResponse({'detail': 'No autorizado.'}, status=401)
+        else:
+            return JsonResponse({'detail': 'No autorizado.'}, status=401)
+
+    order = get_object_or_404(Order, pk=pk)
+    if (order.user_id != request.user.id) and (not request.user.is_staff):
+        return JsonResponse({'detail': 'No autorizado.'}, status=403)
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor, white, black
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    W, H = A4
+
+    font = 'Helvetica'; font_bold = 'Helvetica-Bold'
+    try:
+        pdfmetrics.registerFont(TTFont('Arial', 'C\\\Windows\\\Fonts\\\arial.ttf'))
+        pdfmetrics.registerFont(TTFont('Arial-Bold', 'C\\\Windows\\\Fonts\\\arialbd.ttf'))
+        font = 'Arial'; font_bold = 'Arial-Bold'
+    except Exception:
+        try:
+            pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+            pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
+            font = 'DejaVuSans'; font_bold = 'DejaVuSans-Bold'
+        except Exception:
+            pass
+
+    c.setFillColor(HexColor('#0B6E4F'))
+    c.rect(0, H-30*mm, W, 30*mm, fill=1, stroke=0)
+    c.setFillColor(white)
+    c.setFont(font_bold, 16)
+    c.drawString(20*mm, H-15*mm, 'SmartSales365')
+    c.setFont(font, 10)
+    c.drawRightString(W-20*mm, H-12*mm, 'Comprobante de Compra')
+
+    y = H - 35*mm
+    c.setFillColor(black)
+    c.setFont(font, 10)
+    full_name = order.customer_name or (order.user.get_full_name() or order.user.username)
+    doc = order.customer_document or ''
+    phone = order.customer_phone or ''
+    warranty_note = order.customer_warranty_note or ''
+    c.drawString(20*mm, y, f'Transaccion: {order.transaction_number}'); y -= 6*mm
+    c.drawString(20*mm, y, f'Fecha: {order.created_at.strftime("%Y-%m-%d %H:%M")}'); y -= 6*mm
+    c.drawString(20*mm, y, f'Cliente: {full_name}'); y -= 6*mm
+    if doc:
+        c.drawString(20*mm, y, f'Documento: {doc}'); y -= 6*mm
+    if phone:
+        c.drawString(20*mm, y, f'Telefono: {phone}'); y -= 6*mm
+    y -= 4*mm
+
+    c.setFont(font_bold, 10)
+    c.drawString(20*mm, y, 'Items'); y -= 6*mm
+    c.setFont(font, 10)
+    for it in order.items.all():
+        line = f'{it.qty}x {it.name_snapshot}  @ Bs. {float(it.unit_price):.2f}  = Bs. {float(it.line_total):.2f}'
+        c.drawString(22*mm, y, line); y -= 6*mm
+        if it.warranty_expires_at:
+            c.drawString(24*mm, y, f'Garantia hasta: {it.warranty_expires_at}'); y -= 5*mm
+        if y < 30*mm:
+            c.showPage()
+            c.setFillColor(HexColor('#0B6E4F'))
+            c.rect(0, H-15*mm, W, 15*mm, fill=1, stroke=0)
+            c.setFillColor(white)
+            c.setFont(font_bold, 12)
+            c.drawString(20*mm, H-10*mm, 'SmartSales365 - Comprobante de Compra')
+            c.setFillColor(black)
+            c.setFont(font, 10)
+            y = H - 25*mm
+
+    y -= 5*mm
+    c.setFont(font_bold, 11)
+    c.drawString(20*mm, y, f'Subtotal: Bs. {float(order.subtotal):.2f}'); y -= 6*mm
+    c.drawString(20*mm, y, f'Envio: Bs. {float(order.shipping_total):.2f}  Descuento: Bs. {float(order.discount_total):.2f}  Impuestos: Bs. {float(order.tax_total):.2f}'); y -= 6*mm
+    c.setFillColor(HexColor('#0B6E4F'))
+    c.rect(18*mm, y-2*mm, 60*mm, 8*mm, fill=1, stroke=0)
+    c.setFillColor(white)
+    c.drawString(20*mm, y, f'TOTAL: Bs. {float(order.grand_total):.2f}'); y -= 12*mm
+    c.setFillColor(black)
+    c.setFont(font, 9)
+    c.drawString(20*mm, y, f'Estado: {order.status}  | Transaccion: {order.transaction_status}'); y -= 6*mm
+    if warranty_note:
+        c.drawString(20*mm, y, f'Garantia declarada: {warranty_note}'); y -= 6*mm
+    c.drawString(20*mm, y, 'Gracias por su compra. Conserve este comprobante para garantias.')
+
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    return FileResponse(buf, as_attachment=False, filename=f'receipt_{order.transaction_number}.pdf', content_type='application/pdf')

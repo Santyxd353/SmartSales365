@@ -71,7 +71,7 @@ export default function Cart(){
             <span>Subtotal</span>
             <span className="font-bold">Bs. {total.toFixed(2)}</span>
           </div>
-          <button className="btn btn-primary w-full mt-4" onClick={()=>alert('Checkout pronto')}>
+          <button className="btn btn-primary w-full mt-4" onClick={()=>{ window.location.href = '/checkout' }}>
             Ir a pagar
           </button>
         </div>
@@ -79,4 +79,3 @@ export default function Cart(){
     </section>
   );
 }
-

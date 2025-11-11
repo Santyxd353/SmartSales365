@@ -58,5 +58,22 @@ class Command(BaseCommand):
             )
             created += 1 if was_created else 0
 
-        self.stdout.write(self.style.SUCCESS(f"Seed ok. Productos nuevos: {created}"))
+            # Marca algunos como destacados/oferta para demo
+            changed = False
+            try:
+                if obj.name.startswith('TV') or 'PS5' in obj.name:
+                    if not obj.is_featured:
+                        obj.is_featured = True
+                        changed = True
+                if obj.name == 'Barra de Sonido 2.1' and obj.sale_price is None:
+                    obj.sale_price = 799.00
+                    changed = True
+                if obj.name == 'TV 65" 4K' and (obj.discount_percent is None or float(obj.discount_percent) == 0):
+                    obj.discount_percent = 10
+                    changed = True
+                if changed:
+                    obj.save(update_fields=['is_featured', 'sale_price', 'discount_percent'])
+            except Exception:
+                pass
 
+        self.stdout.write(self.style.SUCCESS(f"Seed ok. Productos nuevos: {created}"))
